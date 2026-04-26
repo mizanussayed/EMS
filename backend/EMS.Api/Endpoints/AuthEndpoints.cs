@@ -13,7 +13,7 @@ public static class AuthEndpoints
     {
         "Admin",
         "Teacher",
-        "Parent",
+        "Student",
         "Accountant"
     };
 
