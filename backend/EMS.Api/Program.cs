@@ -56,11 +56,9 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin"));
 
+
 builder.Services.AddSingleton(jwtOptions);
-builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
-builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IAuditService, AuditService>();
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddApplicationServices();
 
 builder.Services.AddCors(options =>
 {
@@ -79,65 +77,8 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>();
-    db.Database.EnsureCreated();
-
-    if (!db.Students.Any())
-    {
-        db.Students.AddRange(
-            new Student
-            {
-                FirstName = "Ayesha",
-                LastName = "Khan",
-                AdmissionNumber = "S1001",
-                ClassName = "Grade 1",
-                Section = "A",
-                DateOfBirth = new DateTime(2018, 4, 12),
-                Gender = "Female"
-            },
-            new Student
-            {
-                FirstName = "Rahul",
-                LastName = "Sharma",
-                AdmissionNumber = "S1002",
-                ClassName = "Grade 2",
-                Section = "B",
-                DateOfBirth = new DateTime(2017, 9, 3),
-                Gender = "Male"
-            });
-        db.SaveChanges();
-    }
-
-    if (!db.Attendances.Any())
-    {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var students = db.Students.ToList();
-        if (students.Count > 0)
-        {
-            db.Attendances.AddRange(
-                students.Select((student, index) => new Attendance
-                {
-                    StudentId = student.Id,
-                    Date = today,
-                    Status = index % 2 == 0 ? "Present" : "Absent",
-                    Notes = index % 2 == 0 ? null : "Sick leave"
-                }));
-            db.SaveChanges();
-        }
-    }
-
-    if (!db.Users.Any())
-    {
-        var admin = new AppUser
-        {
-            UserName = "admin",
-            Role = "Admin"
-        };
-        admin.PasswordHash = hasher.HashPassword(admin, "Password123");
-        db.Users.Add(admin);
-        db.SaveChanges();
-    }
+    var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
+    seeder.Seed();
 }
 
 app.UseCors();

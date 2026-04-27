@@ -29,10 +29,14 @@ public class TokenService : ITokenService
 
     public string CreateAccessToken(AppUser user, List<Claim>? claims = null)
     {
+        var role = string.IsNullOrWhiteSpace(user.Role)
+            ? user.Role
+            : char.ToUpperInvariant(user.Role[0]) + user.Role[1..].ToLowerInvariant();
+
         var claimSet = claims ?? new List<Claim>
         {
             new(ClaimTypes.Name, user.UserName),
-            new(ClaimTypes.Role, user.Role)
+            new(ClaimTypes.Role, role ?? string.Empty)
         };
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));

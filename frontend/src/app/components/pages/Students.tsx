@@ -83,6 +83,7 @@ export default function Students({ token }: StudentsProps) {
     address: '',
   });
 
+  const apiUrl = import.meta.env.VITE_API_URL;
   const classOptions = useMemo(() => {
     const classSet = new Set(
       students
@@ -99,7 +100,11 @@ export default function Students({ token }: StudentsProps) {
       setLoading(true);
       setErrorMessage(null);
       try {
-        const response = await fetch('/api/students');
+        const response = await fetch(`${apiUrl}/students`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         if (!response.ok) {
           throw new Error('Unable to load students.');
         }
@@ -144,7 +149,7 @@ export default function Students({ token }: StudentsProps) {
 
     setErrorMessage(null);
     try {
-      const response = await fetch('/api/students', {
+      const response = await fetch(`${apiUrl}/students`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,9 +190,10 @@ export default function Students({ token }: StudentsProps) {
       return;
     }
 
+
     setErrorMessage(null);
     try {
-      const response = await fetch(`/api/students/${selectedStudent.id}`, {
+      const response = await fetch(`${apiUrl}/students/${selectedStudent.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -246,7 +252,7 @@ export default function Students({ token }: StudentsProps) {
 
     setErrorMessage(null);
     try {
-      const response = await fetch(`/api/students/${id}`, {
+      const response = await fetch(`${apiUrl}/students/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,

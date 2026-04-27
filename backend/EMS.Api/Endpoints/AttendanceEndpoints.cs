@@ -10,7 +10,7 @@ public static class AttendanceEndpoints
 {
     public static IEndpointRouteBuilder MapAttendanceEndpoints(this IEndpointRouteBuilder app)
     {
-        var attendanceGroup = app.MapGroup("/api/attendance");
+        var attendanceGroup = app.MapGroup("/api/attendance").WithTags("Attendance");
 
         attendanceGroup.MapGet("/{className}", async (string className, AppDbContext db) =>
         {

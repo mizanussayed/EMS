@@ -1,6 +1,9 @@
+using EMS.Api.Contracts;
 using EMS.Api.Data;
 using EMS.Api.Models;
 using EMS.Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
@@ -9,7 +12,9 @@ public static class StudentEndpoints
 {
     public static IEndpointRouteBuilder MapStudentEndpoints(this IEndpointRouteBuilder app)
     {
-        var studentGroup = app.MapGroup("/api/students");
+        var studentGroup = app.MapGroup("/api/students")
+            .WithTags("Student")
+            .RequireAuthorization("StaffOnly");
 
         studentGroup.MapGet("", async (AppDbContext db) =>
             await db.Students.AsNoTracking().OrderBy(s => s.LastName).ToListAsync())
@@ -17,7 +22,8 @@ public static class StudentEndpoints
 
         studentGroup.MapGet("/{id:int}", async (int id, AppDbContext db) =>
             await db.Students.FindAsync(id) is Student student ? Results.Ok(student) : Results.NotFound())
-            .WithName("GetStudentById");
+            .WithName("GetStudentById")
+            .AllowAnonymous();
 
         studentGroup.MapPost("", async (Student student, AppDbContext db, IAuditService audit) =>
         {
@@ -26,8 +32,27 @@ public static class StudentEndpoints
             await audit.LogAsync("CREATE", "Student", student.Id.ToString(),
                 $"Student {student.FirstName} {student.LastName} created.");
             return Results.Created($"/api/students/{student.Id}", student);
-        }).RequireAuthorization("StaffOnly")
+        })
         .WithName("CreateStudent");
+
+        studentGroup.MapPost("/students", [Authorize("AdminOnly")] async (AppDbContext db, [FromBody] StudentRequestModel request) =>
+        {
+            var student = new Student
+            {
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                AdmissionNumber = request.AdmissionNumber,
+                ClassName = request.ClassName,
+                Section = request.Section,
+                Gender = request.Gender,
+                DateOfBirth = request.DateOfBirth
+            };
+
+            db.Students.Add(student);
+            await db.SaveChangesAsync();
+
+            return Results.Created($"/students/{student.Id}", student);
+        });
 
         studentGroup.MapPut("/{id:int}", async (int id, Student update, AppDbContext db, IAuditService audit) =>
         {
@@ -50,7 +75,7 @@ public static class StudentEndpoints
             await audit.LogAsync("UPDATE", "Student", existing.Id.ToString(),
                 $"Student {existing.FirstName} {existing.LastName} updated.");
             return Results.NoContent();
-        }).RequireAuthorization("StaffOnly")
+        })
         .WithName("UpdateStudent");
 
         studentGroup.MapDelete("/{id:int}", async (int id, AppDbContext db, IAuditService audit) =>
@@ -66,7 +91,7 @@ public static class StudentEndpoints
             await audit.LogAsync("DELETE", "Student", existing.Id.ToString(),
                 $"Student {existing.FirstName} {existing.LastName} deleted.");
             return Results.NoContent();
-        }).RequireAuthorization("StaffOnly")
+        })
         .WithName("DeleteStudent");
 
         return app;

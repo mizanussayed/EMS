@@ -8,7 +8,9 @@ public static class DashboardEndpoints
 {
     public static IEndpointRouteBuilder MapDashboardEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/dashboard", async (AppDbContext db) =>
+        var group = app.MapGroup("/api/dashboard").WithTags("Dashboard");
+
+        group.MapGet("", async (AppDbContext db) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
 
