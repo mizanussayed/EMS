@@ -1,5 +1,5 @@
-using EMS.Api.Contracts;
-using EMS.Api.Data;
+using EMS.Application.DTOs;
+using EMS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
@@ -10,7 +10,7 @@ public static class DashboardEndpoints
     {
         var group = app.MapGroup("/api/dashboard").WithTags("Dashboard");
 
-        group.MapGet("", async (AppDbContext db) =>
+        group.MapGet("", async (IApplicationDbContext db) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
 
@@ -26,12 +26,19 @@ public static class DashboardEndpoints
             var presentToday = attendanceToday.Count(record => record.Status == "Present");
             var absentToday = attendanceToday.Count(record => record.Status == "Absent");
 
+            var teacherCount = await db.Staff.AsNoTracking().CountAsync(s => s.Role == "Teacher");
+            var totalFeesCollected = await db.Fees.AsNoTracking().SumAsync(f => f.PaidAmount);
+            var totalFeesExpected = await db.Fees.AsNoTracking().SumAsync(f => f.Amount);
+
             return Results.Ok(new DashboardSummary(
                 studentCount,
                 classCount,
                 attendanceToday.Count,
                 presentToday,
                 absentToday,
+                teacherCount,
+                totalFeesCollected,
+                totalFeesExpected - totalFeesCollected,
                 today));
         }).WithName("GetDashboardSummary");
 

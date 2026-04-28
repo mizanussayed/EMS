@@ -1,7 +1,7 @@
-using EMS.Api.Contracts;
-using EMS.Api.Data;
-using EMS.Api.Models;
-using EMS.Api.Services;
+using EMS.Application.DTOs;
+using EMS.Application.Interfaces;
+using EMS.Domain;
+using EMS.Application.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +21,7 @@ public static class AuthEndpoints
     {
         var authGroup = app.MapGroup("/api/auth").WithTags("Auth");
 
-        authGroup.MapPost("/register", async (RegisterRequest request, AppDbContext db, IPasswordHasher<AppUser> hasher, ITokenService tokens) =>
+        authGroup.MapPost("/register", async (RegisterRequest request, IApplicationDbContext db, IPasswordHasher<AppUser> hasher, ITokenService tokens) =>
         {
             if (!AllowedRoles.Contains(request.Role))
             {
@@ -44,15 +44,16 @@ public static class AuthEndpoints
             db.Users.Add(user);
             await db.SaveChangesAsync();
 
-            var accessToken = tokens.CreateAccessToken(user);
-            var refreshToken = tokens.CreateRefreshToken(user.Id);
+            var accessToken = tokens.CreateToken(user);
+            var refreshToken = tokens.GenerateRefreshToken();
+            refreshToken.UserId = user.Id;
             db.RefreshTokens.Add(refreshToken);
             await db.SaveChangesAsync();
 
             return Results.Ok(new AuthResponse(accessToken, user.Role, user.UserName, refreshToken.Token));
         }).WithName("Register");
 
-        authGroup.MapPost("/login", async (LoginRequest credentials, AppDbContext db, IPasswordHasher<AppUser> hasher, ITokenService tokens) =>
+        authGroup.MapPost("/login", async (LoginRequest credentials, IApplicationDbContext db, IPasswordHasher<AppUser> hasher, ITokenService tokens) =>
         {
             var user = await db.Users
                 .Include(u => u.RefreshTokens)
@@ -69,15 +70,16 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
-            var accessToken = tokens.CreateAccessToken(user);
-            var refreshToken = tokens.CreateRefreshToken(user.Id);
+            var accessToken = tokens.CreateToken(user);
+            var refreshToken = tokens.GenerateRefreshToken();
+            refreshToken.UserId = user.Id;
             db.RefreshTokens.Add(refreshToken);
             await db.SaveChangesAsync();
 
             return Results.Ok(new AuthResponse(accessToken, user.Role, user.UserName, refreshToken.Token));
         }).WithName("Login");
 
-        authGroup.MapPost("/refresh", async (RefreshRequest request, AppDbContext db, ITokenService tokens) =>
+        authGroup.MapPost("/refresh", async (RefreshRequest request, IApplicationDbContext db, ITokenService tokens) =>
         {
             var token = await db.RefreshTokens
                 .Include(t => t.User)
@@ -89,8 +91,9 @@ public static class AuthEndpoints
             }
 
             db.RefreshTokens.Remove(token);
-            var accessToken = tokens.CreateAccessToken(token.User);
-            var newRefreshToken = tokens.CreateRefreshToken(token.UserId);
+            var accessToken = tokens.CreateToken(token.User);
+            var newRefreshToken = tokens.GenerateRefreshToken();
+            newRefreshToken.UserId = token.UserId;
             db.RefreshTokens.Add(newRefreshToken);
             await db.SaveChangesAsync();
 

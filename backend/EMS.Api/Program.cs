@@ -1,39 +1,22 @@
-using EMS.Api.Data;
-using EMS.Api.Endpoints;
-using EMS.Api.Models;
-using EMS.Api.Options;
-using EMS.Api.Services;
+using EMS.Application;
+using EMS.Application.Options;
+using EMS.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Scalar.AspNetCore;
+using EMS.Api.Endpoints;
+using EMS.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    connectionString = "Data Source=ems.db";
-}
+// Add Layers
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    if (connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase))
-    {
-        options.UseNpgsql(connectionString);
-    }
-    else
-    {
-        options.UseSqlite(connectionString);
-    }
-});
-
+// Auth Configuration
 var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-if (string.IsNullOrWhiteSpace(jwtOptions.Key))
-{
-    throw new InvalidOperationException("Jwt:Key is missing in configuration.");
-}
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -46,7 +29,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtOptions.Issuer,
             ValidAudience = jwtOptions.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret))
         };
     });
 
@@ -55,10 +38,6 @@ builder.Services.AddAuthorizationBuilder()
         policy.RequireRole("Admin", "Teacher", "Accountant"))
     .AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin"));
-
-
-builder.Services.AddSingleton(jwtOptions);
-builder.Services.AddApplicationServices();
 
 builder.Services.AddCors(options =>
 {
@@ -70,11 +49,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+// Seed Database
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
@@ -87,12 +66,21 @@ app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
+// Map Endpoints
 app.MapDashboardEndpoints();
 app.MapStudentEndpoints();
+app.MapClassEndpoints();
+app.MapSubjectEndpoints();
+app.MapStaffEndpoints();
+app.MapExamEndpoints();
+app.MapTimetableEndpoints();
+app.MapFeeEndpoints();
+app.MapLibraryEndpoints();
+app.MapEventEndpoints();
 app.MapAttendanceEndpoints();
 app.MapAuditEndpoints();
 app.MapAuthEndpoints();

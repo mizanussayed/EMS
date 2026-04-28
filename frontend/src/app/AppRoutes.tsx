@@ -80,16 +80,16 @@ export default function AppRoutes({
         <Route element={auth ? <MainLayout auth={auth} onLogout={handleLogout} /> : null}>
           <Route path="/dashboard" element={<Dashboard onNavigate={handleNavigate} />} />
           <Route path="/students" element={auth ? <Students token={auth.accessToken} /> : null} />
-          <Route path="/teachers" element={<Teachers />} />
-          <Route path="/classes" element={<Classes />} />
-          <Route path="/subjects" element={<Subjects />} />
+          <Route path="/teachers" element={auth ? <Teachers token={auth.accessToken} /> : null} />
+          <Route path="/classes" element={auth ? <Classes token={auth.accessToken} /> : null} />
+          <Route path="/subjects" element={auth ? <Subjects token={auth.accessToken} /> : null} />
           <Route path="/attendance" element={auth ? <Attendance token={auth.accessToken} /> : null} />
-          <Route path="/exams" element={<Exams />} />
-          <Route path="/results" element={<Results />} />
-          <Route path="/timetable" element={<Timetable />} />
-          <Route path="/fees" element={<Fees />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/events" element={<Events />} />
+          <Route path="/exams" element={auth ? <Exams token={auth.accessToken} /> : null} />
+          <Route path="/results" element={auth ? <Results token={auth.accessToken} /> : null} />
+          <Route path="/timetable" element={auth ? <Timetable token={auth.accessToken} /> : null} />
+          <Route path="/fees" element={auth ? <Fees token={auth.accessToken} /> : null} />
+          <Route path="/library" element={auth ? <Library token={auth.accessToken} /> : null} />
+          <Route path="/events" element={auth ? <Events token={auth.accessToken} /> : null} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

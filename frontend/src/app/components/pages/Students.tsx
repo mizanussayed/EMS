@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Edit, Trash2, Mail, Phone, Eye, X } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Mail, Phone, Eye, X, Users, Calendar } from 'lucide-react';
+import { PageHeader } from '../ui/PageHeader';
+import { StatCard } from '../ui/StatCard';
 
 interface Student {
   id: number;
@@ -320,29 +322,26 @@ export default function Students({ token }: StudentsProps) {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-gray-900 mb-2">Student Management</h1>
-        <p className="text-gray-600">Manage student information and records</p>
-      </div>
+      <PageHeader 
+        title="Student Management" 
+        subtitle="Student Records Database"
+        actions={
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-6 py-3 bg-[#2D6CDF] text-white rounded-2xl hover:bg-[#1a4ba8] flex items-center gap-2 font-black shadow-xl shadow-[#2D6CDF]/20 transition-all active:scale-95"
+          >
+            <Plus className="w-5 h-5" />
+            Enroll Student
+          </button>
+        }
+      />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Total Students</p>
-          <p className="text-gray-900 mt-1">{students.length}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Active</p>
-          <p className="text-green-600 mt-1">{activeStudents}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">New This Month</p>
-          <p className="text-blue-600 mt-1">{newThisMonth}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Avg Attendance</p>
-          <p className="text-orange-600 mt-1">{avgAttendance}</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-6">
+        <StatCard label="Total Students" value={students.length} icon={Users} color="blue" trend="Active students" />
+        <StatCard label="Active" value={activeStudents} icon={Users} color="green" trend="Current status" />
+        <StatCard label="New This Month" value={newThisMonth} icon={Plus} color="purple" trend="Latest enrollments" />
+        <StatCard label="Avg Attendance" value={avgAttendance} icon={Calendar} color="orange" trend="Year to date" />
       </div>
 
       {errorMessage && (

@@ -21,7 +21,7 @@ The system will be built using:
 - [x] Build student management CRUD (API + UI)
 - [x] Build attendance module (API + UI)
 - [x] Build basic dashboard
-- [x] Add testing setup (xUnit, RTL)
+- [x] Add testing setup (xUnit, RTL, Scalar)
 - [x] Set up deployment pipeline (Docker + CI/CD)
 
 ---
@@ -30,11 +30,11 @@ The system will be built using:
 
 ### Backend (.NET Minimal API)
 
-- [ ] Lightweight REST API
+- [x] Lightweight REST API
 - [x] JWT-based authentication
 - [x] Role-based authorization (Admin, Teacher, Parent)
 - [x] Modular service structure
-- [ ] Entity Framework Core (ORM)
+- [x] Entity Framework Core (ORM)
 
 ### Frontend (React + Tailwind CSS)
 
@@ -116,15 +116,7 @@ The system will be built using:
 
 ---
 
-### 8. Inventory & Asset Management
-
-- [ ] Asset tracking
-- [ ] Stock management
-- [ ] Vendor & purchase management
-
----
-
-### 9. Reports & Analytics
+### 8. Reports & Analytics
 
 - [ ] Attendance reports
 - [ ] Academic performance dashboards
@@ -133,7 +125,7 @@ The system will be built using:
 
 ---
 
-### 10. Parent & Student Portal
+### 9. Parent & Student Portal
 
 - [ ] View attendance, results, fees
 - [ ] Homework tracking
@@ -142,14 +134,14 @@ The system will be built using:
 
 ---
 
-### 11. Mobile Support
+### 10. Mobile Support
 
 - [ ] Responsive web app
 - [ ] Optional mobile app (React Native / PWA)
 
 ---
 
-### 12. Security & Administration
+### 11. Security & Administration
 
 - [x] Role-based access control (RBAC)
 - [x] Audit logs
@@ -157,7 +149,7 @@ The system will be built using:
 
 ---
 
-### 13. Advanced Features (Phase 2)
+### 12. Advanced Features (Phase 2)
 
 - [ ] AI-based performance insights
 - [ ] Online classes integration
@@ -251,7 +243,7 @@ The system will be built using:
 - [x] Unit testing (xUnit for .NET)
 - [x] Integration testing
 - [x] Frontend testing (React Testing Library)
-- [x] API testing (Postman / Swagger)
+- [x] API testing (Postman / Scalar)
 ---
 
 ## ☁️ Deployment

@@ -7,288 +7,197 @@ import {
   DollarSign,
   Award,
   AlertCircle,
+  Clock,
+  ArrowRight,
+  Plus,
+  BarChart3,
+  Search
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+
+import { StatCard } from '../ui/StatCard';
+import { PageHeader } from '../ui/PageHeader';
 
 interface DashboardProps {
   onNavigate: (page: string) => void;
 }
 
+interface DashboardData {
+  studentCount: number;
+  classCount: number;
+  attendanceCount: number;
+  presentCount: number;
+  absentCount: number;
+  teacherCount: number;
+  totalFeesCollected: number;
+  totalFeesPending: number;
+  date: string;
+}
+
 export default function Dashboard({ onNavigate }: DashboardProps) {
-  const [summary, setSummary] = useState<{
-    studentCount: number;
-    classCount: number;
-    attendanceCount: number;
-    presentCount: number;
-    absentCount: number;
-    date: string;
-  } | null>(null);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-
     const loadSummary = async () => {
       try {
+        setLoading(true);
         const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
         const response = await fetch(`${apiBaseUrl}/dashboard`);
-        if (!response.ok) {
-          throw new Error('Unable to load dashboard summary.');
-        }
+        if (!response.ok) throw new Error('Unable to load dashboard data');
         const data = await response.json();
-        if (active) {
-          setSummary(data);
-        }
-      } catch (error) {
-        if (active) {
-          const message = error instanceof Error ? error.message : 'Unable to load dashboard summary.';
-          setSummaryError(message);
-        }
+        setSummary(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
     };
-
     loadSummary();
-
-    return () => {
-      active = false;
-    };
   }, []);
 
   const attendanceRate = useMemo(() => {
-    if (!summary || summary.attendanceCount === 0) {
-      return '0%';
-    }
-    return `${((summary.presentCount / summary.attendanceCount) * 100).toFixed(1)}%`;
+    if (!summary || summary.attendanceCount === 0) return 0;
+    return (summary.presentCount / summary.attendanceCount) * 100;
   }, [summary]);
 
-  const kpiCards = [
-    {
-      title: 'Total Students',
-      value: summary ? summary.studentCount.toLocaleString() : '--',
-      change: summary ? `Today: ${summary.date}` : 'Loading',
-      icon: Users,
-      color: 'bg-blue-500',
-    },
-    {
-      title: 'Total Teachers',
-      value: '87',
-      change: 'Static',
-      icon: GraduationCap,
-      color: 'bg-green-500',
-    },
-    {
-      title: 'Total Classes',
-      value: summary ? summary.classCount.toLocaleString() : '--',
-      change: summary ? `${summary.attendanceCount} attendance records` : 'Loading',
-      icon: BookOpen,
-      color: 'bg-purple-500',
-    },
-    {
-      title: 'Attendance Rate',
-      value: summary ? attendanceRate : '--',
-      change: summary ? `${summary.presentCount} present` : 'Loading',
-      icon: TrendingUp,
-      color: 'bg-orange-500',
-    },
-  ];
-
-  const recentActivities = [
-    { action: 'New student enrolled', user: 'John Smith - Grade 10A', time: '10 minutes ago', icon: Users },
-    { action: 'Exam results published', user: 'Mid-term Mathematics', time: '1 hour ago', icon: Award },
-    { action: 'Fee payment received', user: 'Sarah Johnson - Grade 9B', time: '2 hours ago', icon: DollarSign },
-    { action: 'Event scheduled', user: 'Annual Sports Day - Dec 15', time: '3 hours ago', icon: Calendar },
-  ];
-
-  const upcomingEvents = [
-    { title: 'Parent-Teacher Meeting', date: 'Dec 1, 2025', time: '10:00 AM', type: 'Meeting' },
-    { title: 'Final Exams Begin', date: 'Dec 5, 2025', time: '9:00 AM', type: 'Exam' },
-    { title: 'Winter Holiday Starts', date: 'Dec 20, 2025', time: 'All Day', type: 'Holiday' },
-  ];
-
-  const classPerformance = [
-    { class: 'Grade 10A', students: 35, avgScore: 87, attendance: 96 },
-    { class: 'Grade 10B', students: 32, avgScore: 82, attendance: 94 },
-    { class: 'Grade 9A', students: 38, avgScore: 89, attendance: 95 },
-    { class: 'Grade 9B', students: 34, avgScore: 85, attendance: 93 },
-  ];
-
-  const notices = [
-    { title: 'Library Closure', message: 'Library will be closed on Dec 1st for maintenance', priority: 'high' },
-    { title: 'Sports Equipment', message: 'New sports equipment available in the gym', priority: 'low' },
+  const kpis = [
+    { label: 'Students', value: summary?.studentCount ?? 0, icon: Users, color: 'blue' as const, trend: '+12% this month' },
+    { label: 'Teachers', value: summary?.teacherCount ?? 0, icon: GraduationCap, color: 'purple' as const, trend: 'Active now' },
+    { label: 'Attendance', value: `${attendanceRate.toFixed(1)}%`, icon: TrendingUp, color: 'green' as const, trend: 'Today' },
+    { label: 'Revenue', value: `$${(summary?.totalFeesCollected ?? 0).toLocaleString()}`, icon: DollarSign, color: 'orange' as const, trend: 'Fees Collected' },
   ];
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-gray-900 mb-2">Dashboard Overview</h1>
-        <p className="text-gray-600">Welcome back! Here's what's happening in your school today.</p>
-        {summaryError && (
-          <p className="mt-2 text-sm text-red-600">{summaryError}</p>
-        )}
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {kpiCards.map((kpi, index) => {
-          const Icon = kpi.icon;
-          return (
-            <div key={index} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-12 h-12 ${kpi.color} rounded-lg flex items-center justify-center`}>
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
-                  {kpi.change}
-                </span>
-              </div>
-              <h3 className="text-gray-600 mb-1">{kpi.title}</h3>
-              <p className="text-gray-900">{kpi.value}</p>
+    <div className="p-8 max-w-[1600px] mx-auto space-y-10">
+      <PageHeader 
+        title="Admin Command Center" 
+        subtitle="System Operational" 
+        actions={
+          <>
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#2D6CDF] transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Search anything..." 
+                className="pl-12 pr-6 py-3 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all shadow-sm w-64"
+              />
             </div>
-          );
-        })}
+            <button className="w-12 h-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm relative">
+              <Clock className="w-5 h-5 text-gray-600" />
+              <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>
+            </button>
+          </>
+        }
+      />
+
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        {kpis.map((kpi, idx) => (
+          <StatCard key={idx} {...kpi} />
+        ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-        <h2 className="text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <button
-            onClick={() => onNavigate('students')}
-            className="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600 transition-all"
-          >
-            <Users className="w-6 h-6 mx-auto mb-2" />
-            <span className="text-sm">Enroll Student</span>
-          </button>
-          <button
-            onClick={() => onNavigate('attendance')}
-            className="bg-green-500 text-white p-4 rounded-lg hover:bg-green-600 transition-all"
-          >
-            <Calendar className="w-6 h-6 mx-auto mb-2" />
-            <span className="text-sm">Mark Attendance</span>
-          </button>
-          <button
-            onClick={() => onNavigate('exams')}
-            className="bg-purple-500 text-white p-4 rounded-lg hover:bg-purple-600 transition-all"
-          >
-            <Award className="w-6 h-6 mx-auto mb-2" />
-            <span className="text-sm">Schedule Exam</span>
-          </button>
-          <button
-            onClick={() => onNavigate('fees')}
-            className="bg-orange-500 text-white p-4 rounded-lg hover:bg-orange-600 transition-all"
-          >
-            <DollarSign className="w-6 h-6 mx-auto mb-2" />
-            <span className="text-sm">Collect Fees</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Recent Activities */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-gray-900 mb-4">Recent Activities</h2>
-          <div className="space-y-4">
-            {recentActivities.map((activity, index) => {
-              const Icon = activity.icon;
-              return (
-                <div key={index} className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-4 h-4 text-[#2D6CDF]" />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Main Analytics Block */}
+        <div className="xl:col-span-2 space-y-8">
+          <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-gray-900 font-black text-xl">Quick Actions</h3>
+              <button className="text-[#2D6CDF] text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+                View All <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Enroll Student', icon: Plus, color: 'blue', target: 'students' },
+                { label: 'Attendance', icon: Calendar, color: 'green', target: 'attendance' },
+                { label: 'Examination', icon: Award, color: 'purple', target: 'exams' },
+                { label: 'Collect Fees', icon: DollarSign, color: 'orange', target: 'fees' },
+              ].map((action, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => onNavigate(action.target)}
+                  className={`flex flex-col items-center justify-center p-6 bg-${action.color}-50/50 border border-${action.color}-100 rounded-3xl hover:bg-${action.color}-50 transition-all group`}
+                >
+                  <div className={`w-12 h-12 bg-${action.color}-500 text-white rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-${action.color}-500/20 group-hover:scale-110 transition-transform`}>
+                    <action.icon className="w-6 h-6" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-gray-900 text-sm">{activity.action}</p>
-                    <p className="text-xs text-gray-500">{activity.user} • {activity.time}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Upcoming Events */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-gray-900 mb-4">Upcoming Events</h2>
-          <div className="space-y-3">
-            {upcomingEvents.map((event, index) => (
-              <div key={index} className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                <div className="flex items-start justify-between mb-1">
-                  <p className="text-gray-900">{event.title}</p>
-                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">{event.type}</span>
-                </div>
-                <p className="text-sm text-gray-500">
-                  <Calendar className="w-3 h-3 inline mr-1" />
-                  {event.date} • {event.time}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Class Performance */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <h2 className="text-gray-900 mb-4">Class Performance Overview</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-gray-700">Class</th>
-                <th className="px-6 py-3 text-center text-gray-700">Students</th>
-                <th className="px-6 py-3 text-center text-gray-700">Avg Score</th>
-                <th className="px-6 py-3 text-center text-gray-700">Attendance</th>
-                <th className="px-6 py-3 text-center text-gray-700">Performance</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {classPerformance.map((cls, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-gray-900">{cls.class}</td>
-                  <td className="px-6 py-4 text-center text-gray-600">{cls.students}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{cls.avgScore}%</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{cls.attendance}%</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center">
-                      <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#2D6CDF]"
-                          style={{ width: `${cls.avgScore}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
+                  <span className="text-gray-900 font-black text-xs uppercase tracking-wider">{action.label}</span>
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {/* Important Notices */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-gray-900 mb-4">Important Notices</h2>
-        <div className="space-y-3">
-          {notices.map((notice, index) => (
-            <div
-              key={index}
-              className={`p-4 rounded-lg border-l-4 ${
-                notice.priority === 'high'
-                  ? 'bg-red-50 border-red-500'
-                  : 'bg-blue-50 border-blue-500'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <AlertCircle
-                  className={`w-5 h-5 flex-shrink-0 ${
-                    notice.priority === 'high' ? 'text-red-600' : 'text-blue-600'
-                  }`}
-                />
-                <div>
-                  <p className="text-gray-900 mb-1">{notice.title}</p>
-                  <p className="text-sm text-gray-600">{notice.message}</p>
+          <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm overflow-hidden">
+            <h3 className="text-gray-900 font-black text-xl mb-6">System Health & Logs</h3>
+            <div className="space-y-4">
+              {[
+                { title: 'Server Status', value: 'Online', status: 'Healthy', color: 'green' },
+                { title: 'Database Sync', value: 'Synchronized', status: 'Active', color: 'blue' },
+                { title: 'Backup Status', value: 'Today, 03:00 AM', status: 'Completed', color: 'purple' },
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-2 h-2 rounded-full bg-${item.color}-500 animate-pulse`}></div>
+                    <div>
+                      <p className="text-gray-900 font-black text-sm">{item.title}</p>
+                      <p className="text-gray-400 text-xs font-bold">{item.value}</p>
+                    </div>
+                  </div>
+                  <span className={`px-4 py-1.5 bg-${item.color}-50 text-${item.color}-600 rounded-xl text-[10px] font-black uppercase tracking-widest`}>
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar Info Blocks */}
+        <div className="space-y-8">
+          <div className="bg-gray-900 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-black/20 relative overflow-hidden">
+            <TrendingUp className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5" />
+            <h3 className="font-black text-2xl mb-8 relative z-10">Fee Overview</h3>
+            <div className="space-y-6 relative z-10">
+              <div>
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Collected</p>
+                <div className="flex items-end gap-2">
+                  <p className="text-4xl font-black">${(summary?.totalFeesCollected ?? 0).toLocaleString()}</p>
+                  <span className="text-green-400 text-xs font-black mb-1">+4.2%</span>
                 </div>
               </div>
+              <div className="pt-6 border-t border-white/10">
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Pending Dues</p>
+                <p className="text-red-400 text-2xl font-black">${(summary?.totalFeesPending ?? 0).toLocaleString()}</p>
+              </div>
+              <button 
+                onClick={() => onNavigate('fees')}
+                className="w-full py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all backdrop-blur-md"
+              >
+                Financial Reports
+              </button>
             </div>
-          ))}
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm">
+            <h3 className="text-gray-900 font-black text-xl mb-6 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              Notices
+            </h3>
+            <div className="space-y-4">
+              {[
+                { title: 'Holiday Announcement', date: 'Jan 1st - New Year', type: 'Holiday' },
+                { title: 'New Lab Equipment', date: 'Science Dept', type: 'Update' },
+              ].map((notice, idx) => (
+                <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 group cursor-pointer hover:bg-white hover:border-blue-100 transition-all">
+                  <p className="text-gray-900 font-black text-sm mb-1 group-hover:text-[#2D6CDF] transition-colors">{notice.title}</p>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">{notice.date} • {notice.type}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

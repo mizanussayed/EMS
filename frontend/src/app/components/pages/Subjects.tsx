@@ -1,33 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, BookOpen, GraduationCap, Edit, Trash2, X, Eye } from 'lucide-react';
 
 interface Subject {
-  id: string;
+  id: number;
   name: string;
   code: string;
-  teacher: string;
-  classes: string;
-  students: number;
+  teacher?: string;
+  classes?: string;
+  students?: number;
   credits: number;
   type: string;
 }
 
-export default function Subjects() {
+interface SubjectsProps {
+  token: string;
+}
+
+export default function Subjects({ token }: SubjectsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [subjects, setSubjects] = useState<Subject[]>([
-    { id: 'SUB001', name: 'Mathematics', code: 'MATH-10', teacher: 'Dr. Robert Williams', classes: 'Grade 10A, 10B', students: 67, credits: 4, type: 'Core' },
-    { id: 'SUB002', name: 'English Literature', code: 'ENG-10', teacher: 'Ms. Jennifer Clark', classes: 'Grade 9A, 10A', students: 73, credits: 3, type: 'Core' },
-    { id: 'SUB003', name: 'Physics', code: 'PHY-10', teacher: 'Mr. David Martinez', classes: 'Grade 10A, 10B', students: 67, credits: 4, type: 'Core' },
-    { id: 'SUB004', name: 'Chemistry', code: 'CHEM-10', teacher: 'Mrs. Sarah Anderson', classes: 'Grade 9B, 10B', students: 66, credits: 4, type: 'Core' },
-    { id: 'SUB005', name: 'Computer Science', code: 'CS-10', teacher: 'Mr. James Lee', classes: 'Grade 10A', students: 35, credits: 3, type: 'Elective' },
-    { id: 'SUB006', name: 'Art & Design', code: 'ART-10', teacher: 'Ms. Emma Taylor', classes: 'Grade 9A, 9B', students: 72, credits: 2, type: 'Elective' },
-  ]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -38,46 +37,114 @@ export default function Subjects() {
     type: 'Core',
   });
 
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const fetchSubjects = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${apiUrl}/subjects`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch subjects');
+      const data = await response.json();
+      setSubjects(data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiUrl, token]);
+
+  useEffect(() => {
+    fetchSubjects();
+  }, [fetchSubjects]);
+
   const filteredSubjects = subjects.filter(subject => {
     const matchesSearch = subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         subject.teacher.toLowerCase().includes(searchTerm.toLowerCase());
+                         (subject.teacher?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'All' || subject.type === filterType;
     return matchesSearch && matchesType;
   });
 
-  const handleAddSubject = () => {
-    const newSubject: Subject = {
-      id: `SUB${String(subjects.length + 1).padStart(3, '0')}`,
-      name: formData.name,
-      code: formData.code,
-      teacher: formData.teacher,
-      classes: formData.classes,
-      students: 0,
-      credits: parseInt(formData.credits),
-      type: formData.type,
-    };
-    setSubjects([...subjects, newSubject]);
-    setShowAddModal(false);
-    resetForm();
-  };
+  const handleAddSubject = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/subjects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          code: formData.code,
+          teacher: formData.teacher,
+          classes: formData.classes,
+          credits: parseInt(formData.credits),
+          type: formData.type
+        })
+      });
 
-  const handleEditSubject = () => {
-    if (selectedSubject) {
-      setSubjects(subjects.map(s =>
-        s.id === selectedSubject.id
-          ? { ...s, ...formData, credits: parseInt(formData.credits) }
-          : s
-      ));
-      setShowEditModal(false);
-      setSelectedSubject(null);
+      if (!response.ok) throw new Error('Failed to add subject');
+      
+      await fetchSubjects();
+      setShowAddModal(false);
       resetForm();
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
-  const handleDeleteSubject = (id: string) => {
+  const handleEditSubject = async () => {
+    if (selectedSubject) {
+      try {
+        const response = await fetch(`${apiUrl}/subjects/${selectedSubject.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            code: formData.code,
+            teacher: formData.teacher,
+            classes: formData.classes,
+            credits: parseInt(formData.credits),
+            type: formData.type
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to update subject');
+        
+        await fetchSubjects();
+        setShowEditModal(false);
+        setSelectedSubject(null);
+        resetForm();
+      } catch (err: any) {
+        alert(err.message);
+      }
+    }
+  };
+
+  const handleDeleteSubject = async (id: number) => {
     if (confirm('Are you sure you want to delete this subject?')) {
-      setSubjects(subjects.filter(s => s.id !== id));
+      try {
+        const response = await fetch(`${apiUrl}/subjects/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to delete subject');
+        
+        await fetchSubjects();
+      } catch (err: any) {
+        alert(err.message);
+      }
     }
   };
 
@@ -86,8 +153,8 @@ export default function Subjects() {
     setFormData({
       name: subject.name,
       code: subject.code,
-      teacher: subject.teacher,
-      classes: subject.classes,
+      teacher: subject.teacher || '',
+      classes: subject.classes || '',
       credits: String(subject.credits),
       type: subject.type,
     });
@@ -113,6 +180,10 @@ export default function Subjects() {
   const coreSubjects = subjects.filter(s => s.type === 'Core').length;
   const electives = subjects.filter(s => s.type === 'Elective').length;
 
+  if (loading && subjects.length === 0) {
+    return <div className="p-6 text-center">Loading subjects...</div>;
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -120,22 +191,28 @@ export default function Subjects() {
         <p className="text-gray-600">Manage subjects and curriculum</p>
       </div>
 
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow-md p-4">
           <p className="text-gray-600 text-sm">Total Subjects</p>
-          <p className="text-gray-900 mt-1">{subjects.length}</p>
+          <p className="text-gray-900 mt-1 font-semibold">{subjects.length}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-4">
           <p className="text-gray-600 text-sm">Core Subjects</p>
-          <p className="text-blue-600 mt-1">{coreSubjects}</p>
+          <p className="text-blue-600 mt-1 font-semibold">{coreSubjects}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-4">
           <p className="text-gray-600 text-sm">Electives</p>
-          <p className="text-purple-600 mt-1">{electives}</p>
+          <p className="text-purple-600 mt-1 font-semibold">{electives}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-4">
           <p className="text-gray-600 text-sm">Teachers Assigned</p>
-          <p className="text-green-600 mt-1">{new Set(subjects.map(s => s.teacher)).size}</p>
+          <p className="text-green-600 mt-1 font-semibold">{new Set(subjects.map(s => s.teacher).filter(Boolean)).size}</p>
         </div>
       </div>
 
@@ -179,20 +256,20 @@ export default function Subjects() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-gray-700">Subject Code</th>
-                <th className="px-6 py-4 text-left text-gray-700">Subject Name</th>
-                <th className="px-6 py-4 text-left text-gray-700">Teacher</th>
-                <th className="px-6 py-4 text-left text-gray-700">Classes</th>
-                <th className="px-6 py-4 text-center text-gray-700">Students</th>
-                <th className="px-6 py-4 text-center text-gray-700">Credits</th>
-                <th className="px-6 py-4 text-center text-gray-700">Type</th>
-                <th className="px-6 py-4 text-center text-gray-700">Actions</th>
+                <th className="px-6 py-4 text-left text-gray-700 font-semibold">Subject Code</th>
+                <th className="px-6 py-4 text-left text-gray-700 font-semibold">Subject Name</th>
+                <th className="px-6 py-4 text-left text-gray-700 font-semibold">Teacher</th>
+                <th className="px-6 py-4 text-left text-gray-700 font-semibold">Classes</th>
+                <th className="px-6 py-4 text-center text-gray-700 font-semibold">Students</th>
+                <th className="px-6 py-4 text-center text-gray-700 font-semibold">Credits</th>
+                <th className="px-6 py-4 text-center text-gray-700 font-semibold">Type</th>
+                <th className="px-6 py-4 text-center text-gray-700 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredSubjects.map((subject) => (
-                <tr key={subject.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-gray-900">{subject.code}</td>
+                <tr key={subject.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 text-gray-900 font-medium">{subject.code}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-[#2D6CDF]" />
@@ -202,14 +279,14 @@ export default function Subjects() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <GraduationCap className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-600">{subject.teacher}</span>
+                      <span className="text-gray-600">{subject.teacher || 'Not Assigned'}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{subject.classes}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{subject.students}</td>
+                  <td className="px-6 py-4 text-gray-600 text-sm">{subject.classes || 'None'}</td>
+                  <td className="px-6 py-4 text-center text-gray-900">{subject.students || 0}</td>
                   <td className="px-6 py-4 text-center text-gray-900">{subject.credits}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`px-3 py-1 rounded-full text-sm ${
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                       subject.type === 'Core' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
                     }`}>
                       {subject.type}
@@ -219,21 +296,21 @@ export default function Subjects() {
                     <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={() => handleViewClick(subject)}
-                        className="p-1 hover:bg-gray-100 rounded"
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                         title="View Details"
                       >
                         <Eye className="w-4 h-4 text-blue-600" />
                       </button>
                       <button
                         onClick={() => handleEditClick(subject)}
-                        className="p-1 hover:bg-gray-100 rounded"
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Edit"
                       >
                         <Edit className="w-4 h-4 text-gray-600" />
                       </button>
                       <button
                         onClick={() => handleDeleteSubject(subject.id)}
-                        className="p-1 hover:bg-gray-100 rounded"
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Delete"
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
@@ -245,8 +322,8 @@ export default function Subjects() {
             </tbody>
           </table>
         </div>
-        {filteredSubjects.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+        {filteredSubjects.length === 0 && !loading && (
+          <div className="text-center py-12 text-gray-500">
             No subjects found matching your criteria
           </div>
         )}
@@ -254,27 +331,28 @@ export default function Subjects() {
 
       {/* Add Subject Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-gray-300 bg-opacity-1 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900">Add New Subject</h2>
-              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded">
+              <h2 className="text-gray-900 text-xl font-semibold">Add New Subject</h2>
+              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-700 mb-2">Subject Name *</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Subject Name *</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder="e.g., Mathematics"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Subject Code *</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Subject Code *</label>
                   <input
                     type="text"
                     value={formData.code}
@@ -284,16 +362,17 @@ export default function Subjects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Teacher *</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Teacher</label>
                   <input
                     type="text"
                     value={formData.teacher}
                     onChange={(e) => setFormData({...formData, teacher: e.target.value})}
+                    placeholder="Search staff..."
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Classes</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Classes</label>
                   <input
                     type="text"
                     value={formData.classes}
@@ -303,7 +382,7 @@ export default function Subjects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Credits</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Credits</label>
                   <input
                     type="number"
                     value={formData.credits}
@@ -312,7 +391,7 @@ export default function Subjects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Type *</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Type *</label>
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({...formData, type: e.target.value})}
@@ -330,14 +409,14 @@ export default function Subjects() {
                   setShowAddModal(false);
                   resetForm();
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddSubject}
-                disabled={!formData.name || !formData.code || !formData.teacher}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!formData.name || !formData.code}
+                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Subject
               </button>
@@ -348,18 +427,18 @@ export default function Subjects() {
 
       {/* Edit Subject Modal */}
       {showEditModal && selectedSubject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900">Edit Subject - {selectedSubject.name}</h2>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
+              <h2 className="text-gray-900 text-xl font-semibold">Edit Subject - {selectedSubject.name}</h2>
+              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-700 mb-2">Subject Name *</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Subject Name *</label>
                   <input
                     type="text"
                     value={formData.name}
@@ -368,7 +447,7 @@ export default function Subjects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Subject Code *</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Subject Code *</label>
                   <input
                     type="text"
                     value={formData.code}
@@ -377,7 +456,7 @@ export default function Subjects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Teacher *</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Teacher</label>
                   <input
                     type="text"
                     value={formData.teacher}
@@ -386,13 +465,33 @@ export default function Subjects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Classes</label>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Classes</label>
                   <input
                     type="text"
                     value={formData.classes}
                     onChange={(e) => setFormData({...formData, classes: e.target.value})}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
                   />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Credits</label>
+                  <input
+                    type="number"
+                    value={formData.credits}
+                    onChange={(e) => setFormData({...formData, credits: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">Type *</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
+                  >
+                    <option>Core</option>
+                    <option>Elective</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -402,13 +501,13 @@ export default function Subjects() {
                   setShowEditModal(false);
                   resetForm();
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditSubject}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8]"
+                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors"
               >
                 Save Changes
               </button>
@@ -419,58 +518,60 @@ export default function Subjects() {
 
       {/* View Subject Modal */}
       {showViewModal && selectedSubject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900">Subject Details</h2>
-              <button onClick={() => setShowViewModal(false)} className="p-1 hover:bg-gray-100 rounded">
+              <h2 className="text-gray-900 text-xl font-semibold">Subject Details</h2>
+              <button onClick={() => setShowViewModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="text-sm text-gray-500">Subject ID</label>
+                  <label className="text-sm text-gray-500 font-medium">Subject ID</label>
                   <p className="text-gray-900">{selectedSubject.id}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Subject Code</label>
+                  <label className="text-sm text-gray-500 font-medium">Subject Code</label>
                   <p className="text-gray-900">{selectedSubject.code}</p>
                 </div>
-                <div className="col-span-2">
-                  <label className="text-sm text-gray-500">Subject Name</label>
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-500 font-medium">Subject Name</label>
                   <p className="text-gray-900">{selectedSubject.name}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Teacher</label>
-                  <p className="text-gray-900">{selectedSubject.teacher}</p>
+                  <label className="text-sm text-gray-500 font-medium">Teacher</label>
+                  <p className="text-gray-900">{selectedSubject.teacher || 'Not Assigned'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Credits</label>
+                  <label className="text-sm text-gray-500 font-medium">Credits</label>
                   <p className="text-gray-900">{selectedSubject.credits}</p>
                 </div>
-                <div className="col-span-2">
-                  <label className="text-sm text-gray-500">Classes</label>
-                  <p className="text-gray-900">{selectedSubject.classes}</p>
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-500 font-medium">Classes</label>
+                  <p className="text-gray-900">{selectedSubject.classes || 'None'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Total Students</label>
-                  <p className="text-gray-900">{selectedSubject.students}</p>
+                  <label className="text-sm text-gray-500 font-medium">Total Students</label>
+                  <p className="text-gray-900">{selectedSubject.students || 0}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Type</label>
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm ${
-                    selectedSubject.type === 'Core' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                  }`}>
-                    {selectedSubject.type}
-                  </span>
+                  <label className="text-sm text-gray-500 font-medium">Type</label>
+                  <div>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                      selectedSubject.type === 'Core' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                    }`}>
+                      {selectedSubject.type}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Close
               </button>
@@ -479,7 +580,7 @@ export default function Subjects() {
                   setShowViewModal(false);
                   handleEditClick(selectedSubject);
                 }}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8]"
+                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors"
               >
                 Edit Subject
               </button>

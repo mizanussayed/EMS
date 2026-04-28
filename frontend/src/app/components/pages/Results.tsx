@@ -1,316 +1,226 @@
-import { useState } from 'react';
-import { Search, Download, TrendingUp, Edit, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, Download, TrendingUp, Edit, X, FileText, User, ChevronRight, Award } from 'lucide-react';
 
 interface Result {
-  student: string;
-  rollNo: string;
-  class: string;
-  exam: string;
-  math: number;
-  physics: number;
-  chemistry: number;
-  english: number;
-  total: number;
-  percentage: number;
+  id: number;
+  studentId: number;
+  studentName: string;
+  subjectName: string;
+  marksObtained: number;
+  totalMarks: number;
   grade: string;
+  remarks?: string;
 }
 
-export default function Results() {
-  const [filterClass, setFilterClass] = useState('All Classes');
-  const [filterExam, setFilterExam] = useState('All Exams');
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedResult, setSelectedResult] = useState<Result | null>(null);
+interface Exam {
+  id: number;
+  title: string;
+  type: string;
+}
 
-  const [results, setResults] = useState<Result[]>([
-    { student: 'John Smith', rollNo: '2025001', class: 'Grade 10A', exam: 'Mid-term', math: 92, physics: 88, chemistry: 85, english: 90, total: 355, percentage: 88.75, grade: 'A+' },
-    { student: 'Sarah Johnson', rollNo: '2025002', class: 'Grade 10A', exam: 'Mid-term', math: 95, physics: 92, chemistry: 90, english: 93, total: 370, percentage: 92.50, grade: 'A+' },
-    { student: 'Michael Brown', rollNo: '2025003', class: 'Grade 9B', exam: 'Mid-term', math: 78, physics: 75, chemistry: 80, english: 82, total: 315, percentage: 78.75, grade: 'B+' },
-    { student: 'Emily Davis', rollNo: '2025004', class: 'Grade 10B', exam: 'Mid-term', math: 88, physics: 85, chemistry: 87, english: 89, total: 349, percentage: 87.25, grade: 'A' },
-  ]);
+interface ResultsProps {
+  token: string;
+}
 
-  const [formData, setFormData] = useState({
-    math: '0',
-    physics: '0',
-    chemistry: '0',
-    english: '0',
-  });
+export default function Results({ token }: ResultsProps) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<Result[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [selectedExamId, setSelectedExamId] = useState<number | ''>('');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredResults = results.filter(result => {
-    const matchesClass = filterClass === 'All Classes' || result.class === filterClass;
-    const matchesExam = filterExam === 'All Exams' || result.exam === filterExam;
-    return matchesClass && matchesExam;
-  });
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  const calculateGrade = (percentage: number): string => {
-    if (percentage >= 90) return 'A+';
-    if (percentage >= 80) return 'A';
-    if (percentage >= 70) return 'B+';
-    if (percentage >= 60) return 'B';
-    if (percentage >= 50) return 'C';
-    return 'F';
-  };
-
-  const handleEditClick = (result: Result) => {
-    setSelectedResult(result);
-    setFormData({
-      math: String(result.math),
-      physics: String(result.physics),
-      chemistry: String(result.chemistry),
-      english: String(result.english),
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdateResult = () => {
-    if (selectedResult) {
-      const math = parseInt(formData.math);
-      const physics = parseInt(formData.physics);
-      const chemistry = parseInt(formData.chemistry);
-      const english = parseInt(formData.english);
-      const total = math + physics + chemistry + english;
-      const percentage = (total / 400) * 100;
-      const grade = calculateGrade(percentage);
-
-      setResults(results.map(r =>
-        r.rollNo === selectedResult.rollNo
-          ? { ...r, math, physics, chemistry, english, total, percentage, grade }
-          : r
-      ));
-      setShowEditModal(false);
-      setSelectedResult(null);
+  const fetchExams = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiUrl}/exams`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch exams');
+      const data = await response.json();
+      setExams(data);
+      if (data.length > 0) setSelectedExamId(data[0].id);
+    } catch (err: any) {
+      setError(err.message);
     }
-  };
+  }, [apiUrl, token]);
 
-  const handleExportResults = () => {
-    alert('Exporting results to CSV...');
-  };
+  const fetchResults = useCallback(async () => {
+    if (!selectedExamId) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`${apiUrl}/exams/${selectedExamId}/results`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch results');
+      const data = await response.json();
+      setResults(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiUrl, token, selectedExamId]);
 
-  const avgPercentage = (results.reduce((acc, r) => acc + r.percentage, 0) / results.length).toFixed(1);
-  const passRate = ((results.filter(r => r.percentage >= 40).length / results.length) * 100).toFixed(1);
-  const topScorer = results.reduce((max, r) => r.percentage > max.percentage ? r : max, results[0]);
+  useEffect(() => {
+    fetchExams();
+  }, [fetchExams]);
+
+  useEffect(() => {
+    fetchResults();
+  }, [fetchResults]);
+
+  const filteredResults = results.filter(r => 
+    r.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.subjectName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const stats = {
+    avg: results.length ? (results.reduce((acc, r) => acc + (r.marksObtained / r.totalMarks), 0) / results.length * 100).toFixed(1) : '0.0',
+    total: results.length,
+    topGrade: results.filter(r => r.grade === 'A+' || r.grade === 'A').length,
+  };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-gray-900 mb-2">Exam Results</h1>
-        <p className="text-gray-600">View and manage student exam results</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Class Average</p>
-          <p className="text-gray-900 mt-1">{avgPercentage}%</p>
+    <div className="p-6 max-w-[1600px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-gray-900 font-bold text-3xl mb-2">Academic Performance</h1>
+          <p className="text-gray-500 font-medium">Detailed breakdown of examination results</p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Pass Rate</p>
-          <p className="text-green-600 mt-1">{passRate}%</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Top Scorer</p>
-          <p className="text-blue-600 mt-1">{topScorer?.student}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Total Students</p>
-          <p className="text-orange-600 mt-1">{results.length}</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-md p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex gap-3">
-            <select
-              value={filterClass}
-              onChange={(e) => setFilterClass(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-            >
-              <option>All Classes</option>
-              <option>Grade 10A</option>
-              <option>Grade 10B</option>
-              <option>Grade 9A</option>
-              <option>Grade 9B</option>
-            </select>
-            <select
-              value={filterExam}
-              onChange={(e) => setFilterExam(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-            >
-              <option>All Exams</option>
-              <option>Mid-term</option>
-              <option>Final</option>
-              <option>Unit Test</option>
-            </select>
-          </div>
-          <button
-            onClick={handleExportResults}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+        <div className="flex gap-3">
+          <select
+            value={selectedExamId}
+            onChange={(e) => setSelectedExamId(Number(e.target.value))}
+            className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all font-bold text-gray-700 shadow-sm"
           >
-            <Download className="w-4 h-4" />
-            Export Results
+            {exams.map(ex => <option key={ex.id} value={ex.id}>{ex.title}</option>)}
+            {exams.length === 0 && <option value="">No Exams Found</option>}
+          </select>
+          <button className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-black transition-all font-bold shadow-lg shadow-black/10 active:scale-95">
+            <Download className="w-5 h-5" />
+            Export CSV
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 flex items-center gap-3">
+          <X className="w-5 h-5" />
+          {error}
+        </div>
+      )}
+
+      {/* Hero Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div className="bg-gradient-to-br from-[#2D6CDF] to-[#1a4ba8] rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20 relative overflow-hidden">
+          <TrendingUp className="absolute -right-4 -bottom-4 w-32 h-32 text-white/10" />
+          <p className="text-blue-100 text-xs font-black uppercase tracking-widest mb-2">Class Average</p>
+          <p className="text-5xl font-black">{stats.avg}%</p>
+          <div className="mt-4 flex items-center gap-2 text-blue-100 text-sm font-bold">
+            <TrendingUp className="w-4 h-4" />
+            +2.4% from last term
+          </div>
+        </div>
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+          <p className="text-gray-400 text-xs font-black uppercase tracking-widest mb-2">Total Records</p>
+          <p className="text-gray-900 text-4xl font-black">{stats.total}</p>
+          <p className="mt-4 text-gray-500 text-sm font-bold">Processed for this exam</p>
+        </div>
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+          <p className="text-gray-400 text-xs font-black uppercase tracking-widest mb-2">Top Grades (A/A+)</p>
+          <p className="text-green-600 text-4xl font-black">{stats.topGrade}</p>
+          <p className="mt-4 text-gray-500 text-sm font-bold">Students excelled</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 bg-gray-50/30 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="relative flex-1 max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input 
+              type="text" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by student or subject..." 
+              className="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all"
+            />
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-gray-700">Roll No</th>
-                <th className="px-6 py-4 text-left text-gray-700">Student Name</th>
-                <th className="px-6 py-4 text-left text-gray-700">Class</th>
-                <th className="px-6 py-4 text-center text-gray-700">Math</th>
-                <th className="px-6 py-4 text-center text-gray-700">Physics</th>
-                <th className="px-6 py-4 text-center text-gray-700">Chemistry</th>
-                <th className="px-6 py-4 text-center text-gray-700">English</th>
-                <th className="px-6 py-4 text-center text-gray-700">Total</th>
-                <th className="px-6 py-4 text-center text-gray-700">Percentage</th>
-                <th className="px-6 py-4 text-center text-gray-700">Grade</th>
-                <th className="px-6 py-4 text-center text-gray-700">Actions</th>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gray-50/50">
+                <th className="px-6 py-4 text-xs font-black uppercase text-gray-400 tracking-widest">Student</th>
+                <th className="px-6 py-4 text-xs font-black uppercase text-gray-400 tracking-widest">Subject</th>
+                <th className="px-6 py-4 text-xs font-black uppercase text-gray-400 tracking-widest text-center">Score</th>
+                <th className="px-6 py-4 text-xs font-black uppercase text-gray-400 tracking-widest text-center">Grade</th>
+                <th className="px-6 py-4 text-xs font-black uppercase text-gray-400 tracking-widest text-right">Remarks</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredResults.map((result, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-gray-900">{result.rollNo}</td>
-                  <td className="px-6 py-4 text-gray-900">{result.student}</td>
-                  <td className="px-6 py-4 text-gray-600">{result.class}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{result.math}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{result.physics}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{result.chemistry}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{result.english}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{result.total}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{result.percentage.toFixed(2)}%</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      result.grade === 'A+' ? 'bg-green-100 text-green-700' :
-                      result.grade === 'A' ? 'bg-blue-100 text-blue-700' :
-                      'bg-orange-100 text-orange-700'
-                    }`}>
-                      {result.grade}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center">
-                      <button
-                        onClick={() => handleEditClick(result)}
-                        className="p-1 hover:bg-gray-100 rounded"
-                        title="Edit Marks"
-                      >
-                        <Edit className="w-4 h-4 text-gray-600" />
-                      </button>
+            <tbody className="divide-y divide-gray-50">
+              {filteredResults.map((result) => (
+                <tr key={result.id} className="hover:bg-blue-50/30 transition-colors group">
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-gray-900 font-bold group-hover:text-[#2D6CDF] transition-colors">{result.studentName}</p>
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-wider">ID: {result.studentId}</p>
+                      </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-700 font-bold">{result.subjectName}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <div className="inline-flex flex-col">
+                      <span className="text-gray-900 font-black text-lg">{result.marksObtained}</span>
+                      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">/ {result.totalMarks}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <div className="flex items-center justify-center">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-sm ${
+                        result.grade === 'A+' || result.grade === 'A' ? 'bg-green-50 text-green-600' :
+                        result.grade === 'B+' || result.grade === 'B' ? 'bg-blue-50 text-blue-600' :
+                        'bg-orange-50 text-orange-600'
+                      }`}>
+                        {result.grade}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-right">
+                    <p className="text-gray-500 text-sm italic">"{result.remarks || 'No remarks provided'}"</p>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {filteredResults.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No results found matching your criteria
+
+        {loading && (
+          <div className="py-20 flex flex-col items-center justify-center">
+            <div className="w-10 h-10 border-4 border-[#2D6CDF] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-400 font-bold">Loading results...</p>
+          </div>
+        )}
+
+        {!loading && filteredResults.length === 0 && (
+          <div className="py-20 text-center">
+            <Award className="w-16 h-16 text-gray-100 mx-auto mb-4" />
+            <h3 className="text-gray-900 font-bold text-xl mb-1">No Results Uploaded</h3>
+            <p className="text-gray-500">Results for this exam are currently being processed or not yet available.</p>
           </div>
         )}
       </div>
-
-      {/* Edit Result Modal */}
-      {showEditModal && selectedResult && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900">Edit Marks - {selectedResult.student}</h2>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">Roll No:</span>
-                    <span className="text-gray-900 ml-2">{selectedResult.rollNo}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Class:</span>
-                    <span className="text-gray-900 ml-2">{selectedResult.class}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Exam:</span>
-                    <span className="text-gray-900 ml-2">{selectedResult.exam}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-700 mb-2">Mathematics (out of 100)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.math}
-                    onChange={(e) => setFormData({...formData, math: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-2">Physics (out of 100)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.physics}
-                    onChange={(e) => setFormData({...formData, physics: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-2">Chemistry (out of 100)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.chemistry}
-                    onChange={(e) => setFormData({...formData, chemistry: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-2">English (out of 100)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.english}
-                    onChange={(e) => setFormData({...formData, english: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-700">
-                  Total: {parseInt(formData.math || '0') + parseInt(formData.physics || '0') + parseInt(formData.chemistry || '0') + parseInt(formData.english || '0')} / 400
-                </p>
-                <p className="text-sm text-gray-700 mt-1">
-                  Percentage: {(((parseInt(formData.math || '0') + parseInt(formData.physics || '0') + parseInt(formData.chemistry || '0') + parseInt(formData.english || '0')) / 400) * 100).toFixed(2)}%
-                </p>
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateResult}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8]"
-              >
-                Update Marks
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

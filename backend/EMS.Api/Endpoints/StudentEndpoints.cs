@@ -1,7 +1,7 @@
-using EMS.Api.Contracts;
-using EMS.Api.Data;
-using EMS.Api.Models;
-using EMS.Api.Services;
+using EMS.Application.DTOs;
+using EMS.Application.Interfaces;
+using EMS.Domain;
+using EMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,18 +14,18 @@ public static class StudentEndpoints
     {
         var studentGroup = app.MapGroup("/api/students")
             .WithTags("Student")
-            .RequireAuthorization("StaffOnly");
+            .RequireAuthorization("AdminOnly");
 
-        studentGroup.MapGet("", async (AppDbContext db) =>
+        studentGroup.MapGet("", async (IApplicationDbContext db) =>
             await db.Students.AsNoTracking().OrderBy(s => s.LastName).ToListAsync())
             .WithName("GetStudents");
 
-        studentGroup.MapGet("/{id:int}", async (int id, AppDbContext db) =>
+        studentGroup.MapGet("/{id:int}", async (int id, IApplicationDbContext db) =>
             await db.Students.FindAsync(id) is Student student ? Results.Ok(student) : Results.NotFound())
             .WithName("GetStudentById")
             .AllowAnonymous();
 
-        studentGroup.MapPost("", async (Student student, AppDbContext db, IAuditService audit) =>
+        studentGroup.MapPost("", async (Student student, IApplicationDbContext db, IAuditService audit) =>
         {
             db.Students.Add(student);
             await db.SaveChangesAsync();
@@ -35,7 +35,7 @@ public static class StudentEndpoints
         })
         .WithName("CreateStudent");
 
-        studentGroup.MapPost("/students", [Authorize("AdminOnly")] async (AppDbContext db, [FromBody] StudentRequestModel request) =>
+        studentGroup.MapPost("/students", [Authorize("AdminOnly")] async (IApplicationDbContext db, [FromBody] StudentRequestModel request) =>
         {
             var student = new Student
             {
@@ -54,7 +54,7 @@ public static class StudentEndpoints
             return Results.Created($"/students/{student.Id}", student);
         });
 
-        studentGroup.MapPut("/{id:int}", async (int id, Student update, AppDbContext db, IAuditService audit) =>
+        studentGroup.MapPut("/{id:int}", async (int id, Student update, IApplicationDbContext db, IAuditService audit) =>
         {
             var existing = await db.Students.FindAsync(id);
             if (existing is null)
@@ -78,7 +78,7 @@ public static class StudentEndpoints
         })
         .WithName("UpdateStudent");
 
-        studentGroup.MapDelete("/{id:int}", async (int id, AppDbContext db, IAuditService audit) =>
+        studentGroup.MapDelete("/{id:int}", async (int id, IApplicationDbContext db, IAuditService audit) =>
         {
             var existing = await db.Students.FindAsync(id);
             if (existing is null)

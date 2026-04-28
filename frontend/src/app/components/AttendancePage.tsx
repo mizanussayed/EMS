@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, Calendar, Save, CheckCircle2 } from 'lucide-react';
+import { PageHeader } from './ui/PageHeader';
 
 interface AttendancePageProps {
   onNavigate: (screen: string) => void;
@@ -52,24 +53,19 @@ export default function AttendancePage({ onNavigate }: AttendancePageProps) {
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="px-6 py-4 flex items-center gap-4">
+      <PageHeader 
+        title="Mark Attendance" 
+        subtitle="Grade 10-A • Mathematics"
+        className="px-6 py-8 bg-white border-b border-gray-100 shadow-sm"
+        actions={
           <button
             onClick={() => onNavigate('teacher')}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-colors border border-gray-100"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-gray-900">Mark Attendance</h1>
-            <p className="text-sm text-gray-600">Grade 10-A • Mathematics</p>
-          </div>
-          <div className="flex items-center gap-2 text-gray-600">
-            <Calendar className="w-5 h-5" />
-            <span>November 26, 2025</span>
-          </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="p-6 max-w-6xl mx-auto">
         {/* Stats Cards */}
