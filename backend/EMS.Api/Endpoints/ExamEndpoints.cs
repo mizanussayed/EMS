@@ -1,7 +1,5 @@
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using EMS.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
@@ -31,7 +29,8 @@ public static class ExamEndpoints
             await db.ExamResults
                 .Include(r => r.Student)
                 .Where(r => r.ExamId == examId)
-                .Select(r => new {
+                .Select(r => new
+                {
                     r.Id,
                     r.StudentId,
                     StudentName = r.Student.FirstName + " " + r.Student.LastName,

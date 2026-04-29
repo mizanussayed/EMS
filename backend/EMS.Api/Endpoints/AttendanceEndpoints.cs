@@ -1,7 +1,6 @@
 using EMS.Application.DTOs;
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using EMS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;

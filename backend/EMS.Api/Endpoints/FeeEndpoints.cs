@@ -1,7 +1,5 @@
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using EMS.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
@@ -18,7 +16,8 @@ public static class FeeEndpoints
             await db.Fees
                 .AsNoTracking()
                 .Include(f => f.Student)
-                .Select(f => new {
+                .Select(f => new
+                {
                     f.Id,
                     f.StudentId,
                     StudentName = f.Student.FirstName + " " + f.Student.LastName,
@@ -50,7 +49,7 @@ public static class FeeEndpoints
             fee.PaidAmount += request.Amount;
             fee.PaymentDate = DateTime.UtcNow;
             fee.PaymentMethod = request.Method;
-            
+
             if (fee.PaidAmount >= fee.Amount)
                 fee.Status = "Paid";
             else if (fee.PaidAmount > 0)

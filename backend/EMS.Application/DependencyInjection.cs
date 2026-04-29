@@ -1,6 +1,6 @@
-using EMS.Domain;
 using EMS.Application.Interfaces;
 using EMS.Application.Services;
+using EMS.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,7 +14,7 @@ public static class DependencyInjection
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
         services.AddHttpContextAccessor();
-        
+
         return services;
     }
 }

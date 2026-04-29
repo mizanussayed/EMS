@@ -1,23 +1,18 @@
+using EMS.Application.Interfaces;
+using EMS.Application.Options;
+using EMS.Domain;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using EMS.Domain;
-using EMS.Application.Interfaces;
-using EMS.Application.Options;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 
 namespace EMS.Application.Services;
 
-public class TokenService : ITokenService
+public class TokenService(IOptions<JwtOptions> jwtOptions) : ITokenService
 {
-    private readonly JwtOptions _jwtOptions;
-
-    public TokenService(IOptions<JwtOptions> jwtOptions)
-    {
-        _jwtOptions = jwtOptions.Value;
-    }
+    private readonly JwtOptions _jwtOptions = jwtOptions.Value;
 
     public string CreateToken(AppUser user)
     {

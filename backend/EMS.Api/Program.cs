@@ -1,22 +1,30 @@
+using EMS.Api.Endpoints;
 using EMS.Application;
 using EMS.Application.Options;
 using EMS.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Scalar.AspNetCore;
-using EMS.Api.Endpoints;
-using EMS.Infrastructure.Data;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Layers
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Auth Configuration
-var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+
+var jwtSection = builder.Configuration.GetSection("Jwt");
+
+builder.Services.Configure<JwtOptions>(jwtSection);
+
+var jwtOptions = jwtSection.Get<JwtOptions>()
+    ?? throw new InvalidOperationException("JWT configuration is missing");
+
+// Validate Secret
+if (string.IsNullOrWhiteSpace(jwtOptions.Secret) || jwtOptions.Secret.Length < 32)
+{
+    throw new InvalidOperationException("JWT Secret must be at least 32 characters long.");
+}
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -27,50 +35,69 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+
             ValidIssuer = jwtOptions.Issuer,
             ValidAudience = jwtOptions.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret))
+
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.Secret)),
+
+            ClockSkew = TimeSpan.Zero // no extra tolerance
         };
     });
 
+// ----------------------
+// Authorization Policies
+// ----------------------
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("StaffOnly", policy =>
         policy.RequireRole("Admin", "Teacher", "Accountant"))
     .AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin"));
 
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowAnyOrigin(); // ⚠️ change this in production
     });
 });
 
+
 builder.Services.AddOpenApi();
+
 
 var app = builder.Build();
 
-// Seed Database
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
-    seeder.Seed();
+
+    if (app.Environment.IsDevelopment())
+    {
+        seeder.Seed();
+    }
 }
+
+app.UseHttpsRedirection();
 
 app.UseCors();
+
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapOpenApi("/openapi/v1.json");
 
-if (app.Environment.IsDevelopment())
+app.MapScalarApiReference("/openapi", options =>
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
-}
+    options.WithOpenApiRoutePattern("/openapi/v1.json");
+});
 
-// Map Endpoints
+// API Endpoints
+
 app.MapDashboardEndpoints();
 app.MapStudentEndpoints();
 app.MapClassEndpoints();
@@ -83,8 +110,8 @@ app.MapLibraryEndpoints();
 app.MapEventEndpoints();
 app.MapAttendanceEndpoints();
 app.MapAuditEndpoints();
-app.MapAuthEndpoints();
-
-app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy" })).WithName("Health");
+app.MapGet("/api/health", () =>
+    Results.Ok(new { status = "Healthy" }))
+    .WithName("Health");
 
 app.Run();

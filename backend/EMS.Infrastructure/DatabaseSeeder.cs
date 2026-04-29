@@ -1,7 +1,6 @@
-using EMS.Infrastructure.Data;
 using EMS.Domain;
+using EMS.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EMS.Infrastructure;
 

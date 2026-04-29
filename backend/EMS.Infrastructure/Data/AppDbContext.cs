@@ -1,5 +1,5 @@
-using EMS.Domain;
 using EMS.Application.Interfaces;
+using EMS.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Infrastructure.Data;

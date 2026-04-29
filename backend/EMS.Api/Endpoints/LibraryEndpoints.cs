@@ -1,7 +1,5 @@
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using EMS.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
@@ -34,7 +32,8 @@ public static class LibraryEndpoints
                 .AsNoTracking()
                 .Include(i => i.Book)
                 .Include(i => i.Student)
-                .Select(i => new {
+                .Select(i => new
+                {
                     i.Id,
                     i.BookId,
                     BookTitle = i.Book.Title,

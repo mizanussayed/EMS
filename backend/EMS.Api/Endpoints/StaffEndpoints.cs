@@ -1,7 +1,5 @@
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using EMS.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
