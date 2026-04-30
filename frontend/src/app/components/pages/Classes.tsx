@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Users, GraduationCap, Edit, Trash2, X, Eye } from 'lucide-react';
+import { Users, GraduationCap, DoorOpen, Clock, BarChart, BookOpen } from 'lucide-react';
+import { useApi } from '../../hooks/useApi';
+import { useToast, useConfirm } from '../../hooks/useToast';
+import GenericTable, { Column } from '../ui/GenericTable';
+import Modal from '../ui/Modal';
+import GenericForm, { FormField } from '../ui/GenericForm';
+import { ToastContainer } from '../ui/Toast';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface Class {
   id: number;
@@ -13,576 +20,225 @@ interface Class {
   avgScore?: number;
 }
 
-interface ClassesProps {
-  token: string;
-}
+const formFields: FormField[] = [
+  { name: 'name', label: 'Class Name', type: 'text', placeholder: 'e.g., Grade 10', required: true },
+  { name: 'section', label: 'Section', type: 'text', placeholder: 'e.g., A', required: true },
+  { name: 'classTeacher', label: 'Class Teacher', type: 'text', placeholder: 'Search staff...' },
+  { name: 'room', label: 'Room No', type: 'text', placeholder: 'e.g., Room 201' },
+  { name: 'schedule', label: 'Schedule', type: 'select', options: [{label: 'Morning Shift', value: 'Morning Shift'}, {label: 'Afternoon Shift', value: 'Afternoon Shift'}] },
+  { name: 'subjects', label: 'Number of Subjects', type: 'number', placeholder: '8' },
+];
 
-export default function Classes({ token }: ClassesProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterSchedule, setFilterSchedule] = useState('All');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+export default function Classes() {
+  const api = useApi();
+  const { toasts, remove, success, error } = useToast();
+  const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const [classes, setClasses] = useState<Class[]>([]);
-
-  const [formData, setFormData] = useState({
-    name: '',
-    section: '',
-    classTeacher: '',
-    room: '',
-    schedule: 'Morning Shift',
-    subjects: '8',
-  });
-
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
 
   const fetchClasses = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${apiUrl}/classes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch classes');
-      const data = await response.json();
+      const data = await api.get('/classes');
       setClasses(data);
-      setError(null);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, token]);
+  }, [api]);
 
   useEffect(() => {
     fetchClasses();
   }, [fetchClasses]);
 
-  const filteredClasses = classes.filter(cls => {
-    const matchesSearch = cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         cls.section.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (cls.classTeacher?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                         (cls.room?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-    const matchesSchedule = filterSchedule === 'All' || cls.schedule === filterSchedule;
-    return matchesSearch && matchesSchedule;
-  });
-
-  const handleAddClass = async () => {
+  const handleSubmit = async (data: any) => {
     try {
-      const response = await fetch(`${apiUrl}/classes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          section: formData.section,
-          classTeacher: formData.classTeacher,
-          room: formData.room,
-          schedule: formData.schedule
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to add class');
-      
+      if (modalMode === 'add') {
+        await api.post('/classes', data);
+      } else {
+        await api.put(`/classes/${selectedClass?.id}`, data);
+      }
       await fetchClasses();
-      setShowAddModal(false);
-      resetForm();
+      setShowModal(false);
+      success(modalMode === 'add' ? 'Class added successfully.' : 'Class updated successfully.');
     } catch (err: any) {
-      alert(err.message);
+      error(err.message);
     }
   };
 
-  const handleEditClass = async () => {
-    if (selectedClass) {
-      try {
-        const response = await fetch(`${apiUrl}/classes/${selectedClass.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            section: formData.section,
-            classTeacher: formData.classTeacher,
-            room: formData.room,
-            schedule: formData.schedule
-          })
-        });
-
-        if (!response.ok) throw new Error('Failed to update class');
-        
-        await fetchClasses();
-        setShowEditModal(false);
-        setSelectedClass(null);
-        resetForm();
-      } catch (err: any) {
-        alert(err.message);
-      }
+  const handleDelete = async (cls: Class) => {
+    const ok = await confirm(
+      `This will permanently remove ${cls.name} - ${cls.section} from the system.`,
+      'Delete Class?',
+    );
+    if (!ok) return;
+    try {
+      await api.delete(`/classes/${cls.id}`);
+      await fetchClasses();
+      success('Class deleted successfully.');
+    } catch (err: any) {
+      error(err.message);
     }
   };
 
-  const handleDeleteClass = async (id: number) => {
-    if (confirm('Are you sure you want to delete this class?')) {
-      try {
-        const response = await fetch(`${apiUrl}/classes/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) throw new Error('Failed to delete class');
-        
-        await fetchClasses();
-      } catch (err: any) {
-        alert(err.message);
-      }
+  const columns: Column<Class>[] = [
+    { 
+      header: 'Class Name', 
+      accessor: (c) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">
+            {c.name.charAt(0)}
+          </div>
+          <div>
+            <div className="font-bold text-gray-900">{c.name} - {c.section}</div>
+            <div className="text-xs text-gray-400">ID: {c.id}</div>
+          </div>
+        </div>
+      )
+    },
+    { header: 'Teacher', accessor: 'classTeacher' },
+    { header: 'Room', accessor: 'room' },
+    { 
+      header: 'Schedule', 
+      accessor: (c) => (
+        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+          c.schedule === 'Morning Shift' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
+        }`}>
+          {c.schedule}
+        </span>
+      )
+    },
+    { header: 'Students', accessor: 'students' },
+    { 
+      header: 'Performance', 
+      accessor: (c) => (
+        <div className="flex items-center gap-2">
+          <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-[#2D6CDF]" style={{ width: `${c.avgScore || 0}%` }} />
+          </div>
+          <span className="text-xs font-bold text-gray-700">{c.avgScore || 0}%</span>
+        </div>
+      )
     }
-  };
+  ];
 
-  const handleEditClick = (cls: Class) => {
+  const stats = [
+    { label: 'Total Classes', value: classes.length },
+    { label: 'Morning Shift', value: classes.filter(c => c.schedule === 'Morning Shift').length, color: 'text-blue-600' },
+    { label: 'Afternoon Shift', value: classes.filter(c => c.schedule === 'Afternoon Shift').length, color: 'text-orange-600' },
+    { label: 'Avg Class Size', value: classes.length > 0 ? Math.round(classes.reduce((acc, c) => acc + (c.students || 0), 0) / classes.length) : 0 },
+  ];
+
+  const filteredClasses = classes.filter(c => 
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.section.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.classTeacher?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+  );
+
+  function handleEditClick(cls: Class) {
     setSelectedClass(cls);
-    setFormData({
-      name: cls.name,
-      section: cls.section,
-      classTeacher: cls.classTeacher || '',
-      room: cls.room || '',
-      schedule: cls.schedule || 'Morning Shift',
-      subjects: String(cls.subjects || 8),
-    });
-    setShowEditModal(true);
-  };
-
-  const handleViewClick = (cls: Class) => {
-    setSelectedClass(cls);
-    setShowViewModal(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      section: '',
-      classTeacher: '',
-      room: '',
-      schedule: 'Morning Shift',
-      subjects: '8',
-    });
-  };
-
-  const morningShift = classes.filter(c => c.schedule === 'Morning Shift').length;
-  const afternoonShift = classes.filter(c => c.schedule === 'Afternoon Shift').length;
-
-  if (loading && classes.length === 0) {
-    return <div className="p-6 text-center">Loading classes...</div>;
+    setModalMode('edit');
+    setShowModal(true);
   }
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-gray-900 mb-2">Class Management</h1>
-        <p className="text-gray-600">Manage classes and their information</p>
-      </div>
+      <GenericTable
+        title="Class Management"
+        description="Manage classes and their information"
+        stats={stats}
+        data={filteredClasses}
+        columns={columns}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onAdd={() => { setModalMode('add'); setSelectedClass(null); setShowModal(true); }}
+        addLabel="Add Class"
+        onView={(c) => { setSelectedClass(c); setShowViewModal(true); }}
+        onEdit={handleEditClick}
+        onDelete={handleDelete}
+        isLoading={loading && classes.length === 0}
+      />
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={modalMode === 'add' ? 'Create New Class' : 'Edit Class Details'}
+      >
+        <GenericForm
+          fields={formFields}
+          initialData={selectedClass || { schedule: 'Morning Shift', subjects: 8 }}
+          onSubmit={handleSubmit}
+          onCancel={() => setShowModal(false)}
+          submitLabel={modalMode === 'add' ? 'Create Class' : 'Save Changes'}
+        />
+      </Modal>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Total Classes</p>
-          <p className="text-gray-900 mt-1 font-semibold">{classes.length}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Morning Shift</p>
-          <p className="text-blue-600 mt-1 font-semibold">{morningShift}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Afternoon Shift</p>
-          <p className="text-orange-600 mt-1 font-semibold">{afternoonShift}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Avg Class Size</p>
-          <p className="text-green-600 mt-1 font-semibold">{classes.length > 0 ? Math.round(classes.reduce((acc, c) => acc + (c.students || 0), 0) / classes.length) : 0} students</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-md p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex-1 w-full sm:max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search classes..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <select
-              value={filterSchedule}
-              onChange={(e) => setFilterSchedule(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-            >
-              <option>All</option>
-              <option>Morning Shift</option>
-              <option>Afternoon Shift</option>
-            </select>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add Class
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredClasses.map((cls) => (
-          <div key={cls.id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-gray-900 mb-1 font-semibold">{cls.name} - {cls.section}</h3>
-                <p className="text-sm text-gray-500">ID: {cls.id} • Room: {cls.room}</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleViewClick(cls)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                  title="View Details"
-                >
-                  <Eye className="w-4 h-4 text-blue-600" />
-                </button>
-                <button
-                  onClick={() => handleEditClick(cls)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                  title="Edit"
-                >
-                  <Edit className="w-4 h-4 text-gray-600" />
-                </button>
-                <button
-                  onClick={() => handleDeleteClass(cls.id)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4 text-red-600" />
-                </button>
-              </div>
-            </div>
-
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm mb-4 inline-block font-medium">
-              {cls.schedule}
-            </span>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center gap-2 text-sm">
-                <GraduationCap className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-600">Class Teacher: {cls.classTeacher || 'Not Assigned'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Users className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-600">{cls.students || 0} Students</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-              <div>
-                <p className="text-sm text-gray-600">Subjects</p>
-                <p className="text-gray-900 font-medium">{cls.subjects || 0}</p>
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        title="Class Details"
+      >
+        {selectedClass && (
+          <div className="space-y-8">
+            <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">
+                {selectedClass.name.charAt(0)}
               </div>
               <div>
-                <p className="text-sm text-gray-600">Avg Score</p>
-                <p className="text-gray-900 font-medium">{cls.avgScore || 0}%</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Performance</p>
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mt-1">
-                  <div className="h-full bg-[#2D6CDF]" style={{ width: `${cls.avgScore || 0}%` }}></div>
-                </div>
+                <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedClass.name} - {selectedClass.section}</h3>
+                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedClass.schedule}</p>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
 
-      {filteredClasses.length === 0 && !loading && (
-        <div className="text-center py-12 text-gray-500 bg-white rounded-xl shadow-sm">
-          No classes found matching your criteria
-        </div>
-      )}
-
-      {/* Add Class Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900 text-xl font-semibold">Add New Class</h2>
-              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {[
+                { icon: GraduationCap, label: 'Class Teacher', value: selectedClass.classTeacher || 'Not Assigned' },
+                { icon: DoorOpen, label: 'Room Number', value: selectedClass.room || 'N/A' },
+                { icon: Users, label: 'Total Students', value: selectedClass.students || 0 },
+                { icon: BookOpen, label: 'Total Subjects', value: selectedClass.subjects || 0 },
+                { icon: BarChart, label: 'Average Score', value: `${selectedClass.avgScore || 0}%` },
+                { icon: Clock, label: 'Shift', value: selectedClass.schedule },
+              ].map((item, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 font-bold uppercase tracking-widest block">{item.label}</label>
+                    <p className="text-gray-900 font-bold">{item.value}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-1">
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Class Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    placeholder="e.g., Grade 10"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div className="md:col-span-1">
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Section *</label>
-                  <input
-                    type="text"
-                    value={formData.section}
-                    onChange={(e) => setFormData({...formData, section: e.target.value})}
-                    placeholder="e.g., A"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Class Teacher</label>
-                  <input
-                    type="text"
-                    value={formData.classTeacher}
-                    onChange={(e) => setFormData({...formData, classTeacher: e.target.value})}
-                    placeholder="Search staff..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Room</label>
-                  <input
-                    type="text"
-                    value={formData.room}
-                    onChange={(e) => setFormData({...formData, room: e.target.value})}
-                    placeholder="e.g., Room 201"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Schedule</label>
-                  <select
-                    value={formData.schedule}
-                    onChange={(e) => setFormData({...formData, schedule: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  >
-                    <option>Morning Shift</option>
-                    <option>Afternoon Shift</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Number of Subjects</label>
-                  <input
-                    type="number"
-                    value={formData.subjects}
-                    onChange={(e) => setFormData({...formData, subjects: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddClass}
-                disabled={!formData.name || !formData.section}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Class
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Class Modal */}
-      {showEditModal && selectedClass && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900 text-xl font-semibold">Edit Class - {selectedClass.name}</h2>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-1">
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Class Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div className="md:col-span-1">
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Section *</label>
-                  <input
-                    type="text"
-                    value={formData.section}
-                    onChange={(e) => setFormData({...formData, section: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Class Teacher</label>
-                  <input
-                    type="text"
-                    value={formData.classTeacher}
-                    onChange={(e) => setFormData({...formData, classTeacher: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Room</label>
-                  <input
-                    type="text"
-                    value={formData.room}
-                    onChange={(e) => setFormData({...formData, room: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Schedule</label>
-                  <select
-                    value={formData.schedule}
-                    onChange={(e) => setFormData({...formData, schedule: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  >
-                    <option>Morning Shift</option>
-                    <option>Afternoon Shift</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Number of Subjects</label>
-                  <input
-                    type="number"
-                    value={formData.subjects}
-                    onChange={(e) => setFormData({...formData, subjects: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  resetForm();
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditClass}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Class Modal */}
-      {showViewModal && selectedClass && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900 text-xl font-semibold">Class Details</h2>
-              <button onClick={() => setShowViewModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Class ID</label>
-                  <p className="text-gray-900">{selectedClass.id}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Class Name</label>
-                  <p className="text-gray-900">{selectedClass.name}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Section</label>
-                  <p className="text-gray-900">{selectedClass.section}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Class Teacher</label>
-                  <p className="text-gray-900">{selectedClass.classTeacher || 'Not Assigned'}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Room</label>
-                  <p className="text-gray-900">{selectedClass.room || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Schedule</label>
-                  <p className="text-gray-900">{selectedClass.schedule}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Total Students</label>
-                  <p className="text-gray-900">{selectedClass.students || 0}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Total Subjects</label>
-                  <p className="text-gray-900">{selectedClass.subjects || 0}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Average Score</label>
-                  <p className="text-gray-900 font-medium text-lg">{selectedClass.avgScore || 0}%</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  setShowViewModal(false);
-                  handleEditClick(selectedClass);
-                }}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors"
+            
+            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+              <button onClick={() => setShowViewModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all">Close</button>
+              <button 
+                onClick={() => { setShowViewModal(false); handleEditClick(selectedClass); }}
+                className="px-8 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
               >
                 Edit Class
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      <ToastContainer toasts={toasts} onRemove={remove} />
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 }
-

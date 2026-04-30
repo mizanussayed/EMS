@@ -13,6 +13,7 @@ interface GenericGridProps<T> {
   title: string;
   description?: string;
   stats?: { label: string; value: string | number; color?: string }[];
+  canAdd?: boolean;
 }
 
 function GridList<T extends { id: string | number }>({
@@ -26,7 +27,8 @@ function GridList<T extends { id: string | number }>({
   isLoading = false,
   title,
   description,
-  stats = []
+  stats = [],
+  canAdd = true
 }: GenericGridProps<T>) {
   return (
     <div className="space-y-6">
@@ -35,7 +37,7 @@ function GridList<T extends { id: string | number }>({
           <h1 className="text-gray-900 font-bold text-2xl">{title}</h1>
           {description && <p className="text-gray-600 mt-1">{description}</p>}
         </div>
-        {onAdd && (
+        {canAdd && onAdd && (
           <button
             onClick={onAdd}
             className="flex items-center justify-center gap-2 px-6 py-3 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"

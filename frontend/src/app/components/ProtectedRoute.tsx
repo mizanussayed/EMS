@@ -1,11 +1,13 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
-  auth: { role: string } | null;
   allowedRoles: string[];
 }
 
-export default function ProtectedRoute({ auth, allowedRoles }: ProtectedRouteProps) {
+export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
+  const { auth } = useAuth();
+
   if (!auth) {
     return <Navigate to="/" replace />;
   }

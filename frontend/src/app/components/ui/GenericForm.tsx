@@ -3,11 +3,14 @@ import React, { useState, useEffect } from 'react';
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'tel' | 'date' | 'textarea' | 'select' | 'number';
+  type: 'text' | 'email' | 'tel' | 'date' | 'textarea' | 'select' | 'number' | 'password' | 'datetime-local';
   placeholder?: string;
   required?: boolean;
   options?: { label: string; value: any }[];
   colSpan?: 1 | 2;
+  validate?: (value: any) => string | null;
+  pattern?: string;
+  patternMessage?: string;
 }
 
 interface GenericFormProps {
@@ -30,64 +33,151 @@ const GenericForm: React.FC<GenericFormProps> = ({
   isLoading = false
 }) => {
   const [formData, setFormData] = useState<any>(initialData);
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const initialDataRef = React.useRef<string>('');
 
   useEffect(() => {
-    setFormData(initialData);
+    const serialized = JSON.stringify(initialData);
+    if (serialized !== initialDataRef.current) {
+      initialDataRef.current = serialized;
+      setFormData(initialData);
+    }
   }, [initialData]);
 
-  const handleChange = (name: string, value: any) => {
+  const validateField = (field: FormField, value: any) => {
+    if (field.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
+      return `${field.label} is required`;
+    }
+    
+    if (field.type === 'email' && value) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) return 'Invalid email address';
+    }
+
+    if (field.pattern && value) {
+      const regex = new RegExp(field.pattern);
+      if (!regex.test(value)) return field.patternMessage || 'Invalid format';
+    }
+
+    if (field.validate) {
+      return field.validate(value);
+    }
+
+    return null;
+  };
+
+  const handleChange = (field: FormField, value: any) => {
+    const name = field.name;
     setFormData((prev: any) => ({ ...prev, [name]: value }));
+    
+    if (touched[name]) {
+      const error = validateField(field, value);
+      setErrors(prev => ({ ...prev, [name]: error }));
+    }
+  };
+
+  const handleBlur = (field: FormField) => {
+    const name = field.name;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    const error = validateField(field, formData[name]);
+    setErrors(prev => ({ ...prev, [name]: error }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Validate all fields
+    const newErrors: Record<string, string | null> = {};
+    let hasErrors = false;
+    
+    fields.forEach(field => {
+      const error = validateField(field, formData[field.name]);
+      if (error) {
+        newErrors[field.name] = error;
+        hasErrors = true;
+      }
+    });
+
+    setErrors(newErrors);
+    
+    // Mark all as touched to show errors
+    const newTouched: Record<string, boolean> = {};
+    fields.forEach(field => { newTouched[field.name] = true; });
+    setTouched(newTouched);
+
+    if (!hasErrors) {
+      onSubmit(formData);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {fields.map((field) => (
-          <div key={field.name} className={field.colSpan === 2 ? 'md:col-span-2' : ''}>
-            <label className="block text-gray-700 font-bold text-sm mb-2">
-              {field.label} {field.required && <span className="text-red-500">*</span>}
-            </label>
-            
-            {field.type === 'textarea' ? (
-              <textarea
-                value={formData[field.name] || ''}
-                onChange={(e) => handleChange(field.name, e.target.value)}
-                placeholder={field.placeholder}
-                required={field.required}
-                rows={3}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all"
-              />
-            ) : field.type === 'select' ? (
-              <select
-                value={formData[field.name] || ''}
-                onChange={(e) => handleChange(field.name, e.target.value)}
-                required={field.required}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all appearance-none"
-              >
-                <option value="">Select {field.label}</option>
-                {field.options?.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type={field.type}
-                value={formData[field.name] || ''}
-                onChange={(e) => handleChange(field.name, e.target.value)}
-                placeholder={field.placeholder}
-                required={field.required}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all"
-              />
-            )}
-          </div>
-        ))}
+        {fields.map((field) => {
+          const hasError = touched[field.name] && errors[field.name];
+          return (
+            <div key={field.name} className={field.colSpan === 2 ? 'md:col-span-2' : ''}>
+              <label className={`block font-bold text-sm mb-2 transition-colors ${hasError ? 'text-red-500' : 'text-gray-700'}`}>
+                {field.label} {field.required && <span className="text-red-500">*</span>}
+              </label>
+              
+              <div className="relative">
+                {field.type === 'textarea' ? (
+                  <textarea
+                    value={formData[field.name] || ''}
+                    onChange={(e) => handleChange(field, e.target.value)}
+                    onBlur={() => handleBlur(field)}
+                    placeholder={field.placeholder}
+                    rows={3}
+                    className={`w-full px-4 py-2 bg-gray-50 border rounded-xl focus:outline-none focus:ring-4 transition-all ${
+                      hasError 
+                        ? 'border-red-200 focus:ring-red-500/10 focus:border-red-500' 
+                        : 'border-gray-200 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF]'
+                    }`}
+                  />
+                ) : field.type === 'select' ? (
+                  <select
+                    value={formData[field.name] || ''}
+                    onChange={(e) => handleChange(field, e.target.value)}
+                    onBlur={() => handleBlur(field)}
+                    className={`w-full px-4 py-2 bg-gray-50 border rounded-xl focus:outline-none focus:ring-4 transition-all appearance-none ${
+                      hasError 
+                        ? 'border-red-200 focus:ring-red-500/10 focus:border-red-500' 
+                        : 'border-gray-200 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF]'
+                    }`}
+                  >
+                    <option value="">Select {field.label}</option>
+                    {field.options?.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type}
+                    value={formData[field.name] || ''}
+                    onChange={(e) => handleChange(field, e.target.value)}
+                    onBlur={() => handleBlur(field)}
+                    placeholder={field.placeholder}
+                    className={`w-full px-4 py-2 bg-gray-50 border rounded-xl focus:outline-none focus:ring-4 transition-all ${
+                      hasError 
+                        ? 'border-red-200 focus:ring-red-500/10 focus:border-red-500' 
+                        : 'border-gray-200 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF]'
+                    }`}
+                  />
+                )}
+                {hasError && (
+                  <p className="mt-1.5 text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {errors[field.name]}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">

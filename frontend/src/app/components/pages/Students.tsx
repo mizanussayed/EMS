@@ -1,8 +1,13 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Mail, Phone, BookOpen, User, Calendar, MapPin } from 'lucide-react';
+import { useApi } from '../../hooks/useApi';
+import { useAuth } from '../../context/AuthContext';
+import { useToast, useConfirm } from '../../hooks/useToast';
 import GenericTable, { Column } from '../ui/GenericTable';
 import Modal from '../ui/Modal';
 import GenericForm, { FormField } from '../ui/GenericForm';
+import { ToastContainer } from '../ui/Toast';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface Student {
   id: number;
@@ -33,10 +38,6 @@ interface ApiStudent {
   gender?: string;
   dateOfBirth?: string;
   active: boolean;
-}
-
-interface StudentsProps {
-  token?: string;
 }
 
 const mapStudentFromApi = (student: ApiStudent): Student => ({
@@ -72,33 +73,31 @@ const formFields: FormField[] = [
   { name: 'address', label: 'Address', type: 'textarea', colSpan: 2 },
 ];
 
-export default function Students({ token }: StudentsProps) {
+export default function Students() {
+  const api = useApi();
+  const { auth } = useAuth();
+  const { toasts, remove, success, error } = useToast();
+  const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
-  const apiUrl = import.meta.env.VITE_API_URL;
-
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${apiUrl}/students`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to load students');
-      const data = await response.json();
+      const data = await api.get('/students');
       setStudents(data.map(mapStudentFromApi));
     } catch (err: any) {
-      setError(err.message);
+      // Errors are already logged in useApi, we can show a toast or alert here if needed
+      console.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, token]);
+  }, [api]);
 
   useEffect(() => {
     fetchStudents();
@@ -106,38 +105,31 @@ export default function Students({ token }: StudentsProps) {
 
   const handleSubmit = async (formData: any) => {
     try {
-      const url = modalMode === 'add' ? `${apiUrl}/students` : `${apiUrl}/students/${selectedStudent?.id}`;
-      const method = modalMode === 'add' ? 'POST' : 'PUT';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) throw new Error(`Failed to ${modalMode} student`);
+      if (modalMode === 'add') {
+        await api.post('/students', formData);
+      } else {
+        await api.put(`/students/${selectedStudent?.id}`, formData);
+      }
       await fetchStudents();
       setShowModal(false);
+      success(modalMode === 'add' ? 'Student registered successfully.' : 'Student updated successfully.');
     } catch (err: any) {
-      alert(err.message);
+      error(err.message);
     }
   };
 
   const handleDelete = async (student: Student) => {
-    if (confirm('Are you sure you want to delete this student?')) {
-      try {
-        const response = await fetch(`${apiUrl}/students/${student.id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error('Failed to delete student');
-        await fetchStudents();
-      } catch (err: any) {
-        alert(err.message);
-      }
+    const ok = await confirm(
+      `This will permanently remove ${student.name} from the system.`,
+      'Delete Student?',
+    );
+    if (!ok) return;
+    try {
+      await api.delete(`/students/${student.id}`);
+      await fetchStudents();
+      success('Student deleted successfully.');
+    } catch (err: any) {
+      error(err.message);
     }
   };
 
@@ -217,6 +209,9 @@ export default function Students({ token }: StudentsProps) {
         }}
         onDelete={handleDelete}
         isLoading={loading && students.length === 0}
+        canAdd={auth?.role === 'admin'}
+        canEdit={auth?.role === 'admin'}
+        canDelete={auth?.role === 'admin'}
       />
 
       <Modal
@@ -289,7 +284,7 @@ export default function Students({ token }: StudentsProps) {
             <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
               <button onClick={() => setShowViewModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all">Close</button>
               <button 
-                onClick={() => { setShowViewModal(false); /* Add edit call if needed */ }}
+                onClick={() => { setShowViewModal(false); setModalMode('edit'); setShowModal(true); }}
                 className="px-8 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
               >
                 Edit Student
@@ -298,6 +293,16 @@ export default function Students({ token }: StudentsProps) {
           </div>
         )}
       </Modal>
+
+      <ToastContainer toasts={toasts} onRemove={remove} />
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 }

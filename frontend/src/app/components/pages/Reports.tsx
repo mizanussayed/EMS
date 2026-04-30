@@ -1,7 +1,11 @@
 import { useState } from 'react';
-import { BarChart3, Download, FileText, TrendingUp } from 'lucide-react';
+import { BarChart3, Download, FileText, TrendingUp, Calendar, Search } from 'lucide-react';
+import { RoleGuard } from '../auth/RoleGuard';
+import { useToast } from '../../hooks/useToast';
+import { ToastContainer } from '../ui/Toast';
 
 export default function Reports() {
+  const { toasts, remove, warning, info } = useToast();
   const [selectedReportType, setSelectedReportType] = useState('Student Report');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -22,59 +26,46 @@ export default function Reports() {
 
   const handleGenerateReport = () => {
     if (!fromDate || !toDate) {
-      alert('Please select both from and to dates');
+      warning('Please select both from and to dates.');
       return;
     }
-
-    const reportData = {
-      type: selectedReportType,
-      fromDate,
-      toDate,
-      generatedAt: new Date().toISOString(),
-    };
-
-    alert(`Report Generated!\n\nType: ${reportData.type}\nPeriod: ${fromDate} to ${toDate}\n\nDownloading...`);
-
-    // Simulate download
-    console.log('Generated Report:', reportData);
-  };
-
-  const handleDownloadReport = (reportName: string) => {
-    alert(`Downloading: ${reportName}`);
+    info(`Generating ${selectedReportType}...`);
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-gray-900 mb-2">Reports & Analytics</h1>
-        <p className="text-gray-600">Generate and view various reports</p>
+    <>
+      <RoleGuard allowedRoles={['admin']}>
+      <div className="p-8 max-w-[1600px] mx-auto">
+      <div className="mb-10">
+        <h1 className="text-gray-900 font-black text-3xl mb-2">Reports & Analytics</h1>
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Generate and view detailed system data</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
         {reportCategories.map((category, index) => {
           const Icon = category.icon;
           return (
-            <div key={index} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer">
-              <div className={`w-12 h-12 ${category.color} rounded-lg flex items-center justify-center mb-4`}>
-                <Icon className="w-6 h-6 text-white" />
+            <div key={index} className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
+              <div className={`w-14 h-14 ${category.color} rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-black/5 group-hover:scale-110 transition-transform`}>
+                <Icon className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-gray-900 mb-1">{category.title}</h3>
-              <p className="text-gray-600">{category.count} available</p>
+              <h3 className="text-gray-900 font-black text-lg mb-1">{category.title}</h3>
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">{category.count} Templates</p>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-gray-900 mb-4">Generate Custom Report</h2>
-          <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        <div className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-10">
+          <h2 className="text-gray-900 font-black text-xl mb-8">Generate Custom Report</h2>
+          <div className="space-y-8">
             <div>
-              <label className="block text-gray-700 mb-2">Report Type</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Report Type</label>
               <select
                 value={selectedReportType}
                 onChange={(e) => setSelectedReportType(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
+                className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all font-bold text-gray-700"
               >
                 <option>Student Report</option>
                 <option>Academic Report</option>
@@ -84,90 +75,104 @@ export default function Reports() {
                 <option>Teacher Performance Report</option>
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-gray-700 mb-2">From Date</label>
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                />
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">From Date</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-full pl-12 pr-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all font-bold"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-gray-700 mb-2">To Date</label>
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                />
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">To Date</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-full pl-12 pr-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all font-bold"
+                  />
+                </div>
               </div>
             </div>
             <button
               onClick={handleGenerateReport}
-              className="w-full px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] flex items-center justify-center gap-2"
+              className="w-full py-5 bg-[#2D6CDF] text-white rounded-2xl font-black shadow-xl shadow-[#2D6CDF]/20 hover:bg-[#1a4ba8] transition-all active:scale-95 flex items-center justify-center gap-3 uppercase tracking-widest text-sm"
             >
-              <BarChart3 className="w-4 h-4" />
-              Generate Report
+              <BarChart3 className="w-5 h-5" />
+              Generate Analytical Report
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-gray-900 mb-4">Quick Stats</h2>
-          <div className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-gray-700 mb-1">Total Students</p>
-              <p className="text-gray-900">1,248</p>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <p className="text-gray-700 mb-1">Average Attendance</p>
-              <p className="text-gray-900">94.2%</p>
-            </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <p className="text-gray-700 mb-1">Pass Rate</p>
-              <p className="text-gray-900">98.5%</p>
-            </div>
-            <div className="p-4 bg-orange-50 rounded-lg">
-              <p className="text-gray-700 mb-1">Fee Collection Rate</p>
-              <p className="text-gray-900">87.8%</p>
-            </div>
+        <div className="bg-gray-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
+          <TrendingUp className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5" />
+          <h2 className="text-xl font-black mb-8 relative z-10">Historical Pulse</h2>
+          <div className="space-y-6 relative z-10">
+            {[
+              { label: 'Pass Rate', value: '98.5%', color: 'text-green-400' },
+              { label: 'Retention', value: '94.2%', color: 'text-blue-400' },
+              { label: 'Fee Collection', value: '87.8%', color: 'text-orange-400' },
+              { label: 'Growth', value: '+12.4%', color: 'text-purple-400' },
+            ].map((stat, i) => (
+              <div key={i} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between">
+                <span className="text-gray-400 text-xs font-black uppercase tracking-widest">{stat.label}</span>
+                <span className={`text-xl font-black ${stat.color}`}>{stat.value}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-gray-900">Recent Reports</h2>
+      <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h2 className="text-gray-900 font-black text-xl">Recent Generations</h2>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Filter reports..." 
+              className="pl-12 pr-6 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 transition-all text-sm"
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-gray-700">Report Name</th>
-                <th className="px-6 py-4 text-left text-gray-700">Category</th>
-                <th className="px-6 py-4 text-left text-gray-700">Generated On</th>
-                <th className="px-6 py-4 text-left text-gray-700">Type</th>
-                <th className="px-6 py-4 text-center text-gray-700">Actions</th>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gray-50/50">
+                <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 tracking-widest">Report Name</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 tracking-widest">Category</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 tracking-widest">Generated On</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 tracking-widest text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-100">
               {recentReports.map((report, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-gray-900">{report.name}</td>
-                  <td className="px-6 py-4 text-gray-600">{report.category}</td>
-                  <td className="px-6 py-4 text-gray-600">{report.date}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm">{report.type}</span>
+                <tr key={index} className="hover:bg-blue-50/30 transition-colors group">
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-[#2D6CDF] transition-all">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <span className="text-gray-900 font-bold">{report.name}</span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <button
-                      onClick={() => handleDownloadReport(report.name)}
-                      className="px-3 py-1 text-[#2D6CDF] hover:bg-blue-50 rounded text-sm flex items-center gap-1 mx-auto"
-                    >
+                  <td className="px-8 py-6">
+                    <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                      {report.category}
+                    </span>
+                  </td>
+                  <td className="px-8 py-6 text-gray-500 font-medium">{report.date}</td>
+                  <td className="px-8 py-6 text-right">
+                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-[#2D6CDF] rounded-xl text-xs font-black uppercase tracking-widest hover:bg-[#2D6CDF] hover:text-white transition-all shadow-sm">
                       <Download className="w-4 h-4" />
-                      Download
+                      {report.type}
                     </button>
                   </td>
                 </tr>
@@ -176,6 +181,9 @@ export default function Reports() {
           </table>
         </div>
       </div>
-    </div>
+      </div>
+    </RoleGuard>
+      <ToastContainer toasts={toasts} onRemove={remove} />
+    </>
   );
 }

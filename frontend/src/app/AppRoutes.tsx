@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 import LoginPage from './components/LoginPage';
 import MainLayout from './components/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -20,28 +21,8 @@ import Timetable from './components/pages/Timetable';
 import StudentMobileDashboard from './components/StudentMobileDashboard';
 import TeacherDashboard from './components/TeacherDashboard';
 
-interface AuthState {
-  accessToken: string;
-  refreshToken: string;
-  role: string;
-  userName: string;
-}
-
-interface AppRoutesProps {
-  auth: AuthState | null;
-  handleLogin: (credentials: { userName: string; password: string }) => void;
-  loginLoading: boolean;
-  loginError: string | null;
-  handleLogout: () => void;
-}
-
-export default function AppRoutes({
-  auth,
-  handleLogin,
-  loginLoading,
-  loginError,
-  handleLogout,
-}: AppRoutesProps) {
+export default function AppRoutes() {
+  const { auth, login, loginLoading, loginError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -69,6 +50,10 @@ export default function AppRoutes({
     navigate(target);
   };
 
+  const handleLogin = (credentials: { userName: string; password: string }) => {
+    login(credentials.userName, credentials.password);
+  };
+
   return (
     <Routes>
       <Route
@@ -76,30 +61,30 @@ export default function AppRoutes({
         element={<LoginPage onLogin={handleLogin} loading={loginLoading} errorMessage={loginError} />}
       />
 
-      <Route element={<ProtectedRoute auth={auth} allowedRoles={['admin']} />}>
-        <Route element={auth ? <MainLayout auth={auth} onLogout={handleLogout} /> : null}>
+      <Route element={<ProtectedRoute allowedRoles={['admin', 'teacher']} />}>
+        <Route element={<MainLayout />}>
           <Route path="/dashboard" element={<Dashboard onNavigate={handleNavigate} />} />
-          <Route path="/students" element={auth ? <Students token={auth.accessToken} /> : null} />
-          <Route path="/teachers" element={auth ? <Teachers token={auth.accessToken} /> : null} />
-          <Route path="/classes" element={auth ? <Classes token={auth.accessToken} /> : null} />
-          <Route path="/subjects" element={auth ? <Subjects token={auth.accessToken} /> : null} />
-          <Route path="/attendance" element={auth ? <Attendance token={auth.accessToken} /> : null} />
-          <Route path="/exams" element={auth ? <Exams token={auth.accessToken} /> : null} />
-          <Route path="/results" element={auth ? <Results token={auth.accessToken} /> : null} />
-          <Route path="/timetable" element={auth ? <Timetable token={auth.accessToken} /> : null} />
-          <Route path="/fees" element={auth ? <Fees token={auth.accessToken} /> : null} />
-          <Route path="/library" element={auth ? <Library token={auth.accessToken} /> : null} />
-          <Route path="/events" element={auth ? <Events token={auth.accessToken} /> : null} />
+          <Route path="/students" element={<Students />} />
+          <Route path="/teachers" element={<Teachers />} />
+          <Route path="/classes" element={<Classes />} />
+          <Route path="/subjects" element={<Subjects />} />
+          <Route path="/attendance" element={<Attendance />} />
+          <Route path="/exams" element={<Exams />} />
+          <Route path="/results" element={<Results />} />
+          <Route path="/timetable" element={<Timetable />} />
+          <Route path="/fees" element={<Fees />} />
+          <Route path="/library" element={<Library />} />
+          <Route path="/events" element={<Events />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>
 
-      <Route element={<ProtectedRoute auth={auth} allowedRoles={['teacher']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
         <Route path="/teacher" element={<TeacherDashboard onNavigate={() => {}} />} />
       </Route>
 
-      <Route element={<ProtectedRoute auth={auth} allowedRoles={['student']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['student']} />}>
         <Route path="/student" element={<StudentMobileDashboard onNavigate={() => {}} />} />
       </Route>
 
@@ -108,11 +93,11 @@ export default function AppRoutes({
         element={
           <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#2D6CDF] to-[#1a4ba8] p-4">
             <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
-              <h1 className="text-gray-900 mb-4">Page Not Found</h1>
-              <p className="text-gray-600">The page you are looking for does not exist.</p>
+              <h1 className="text-gray-900 mb-4 font-black">Page Not Found</h1>
+              <p className="text-gray-600 font-medium">The page you are looking for does not exist.</p>
               <button
                 onClick={() => (window.location.href = '/')}
-                className="mt-6 px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8]"
+                className="mt-6 px-8 py-3 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all shadow-lg shadow-[#2D6CDF]/20"
               >
                 Go to Home
               </button>

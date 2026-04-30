@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Mail, Phone, BookOpen, Edit, Trash2 } from 'lucide-react';
+import { useApi } from '../../hooks/useApi';
+import { useAuth } from '../../context/AuthContext';
+import { useToast, useConfirm } from '../../hooks/useToast';
 import GridList from '../ui/GridList';
 import Modal from '../ui/Modal';
 import GenericForm, { FormField } from '../ui/GenericForm';
+import { ToastContainer } from '../ui/Toast';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface Teacher {
   id: number;
@@ -18,10 +23,6 @@ interface Teacher {
   dateOfJoining?: string;
 }
 
-interface TeachersProps {
-  token: string;
-}
-
 const formFields: FormField[] = [
   { name: 'name', label: 'Full Name', type: 'text', placeholder: 'Enter staff name', required: true, colSpan: 2 },
   { name: 'subject', label: 'Primary Subject', type: 'text', placeholder: 'e.g. Mathematics' },
@@ -34,34 +35,30 @@ const formFields: FormField[] = [
   { name: 'address', label: 'Residential Address', type: 'textarea', placeholder: 'Enter full address', colSpan: 2 },
 ];
 
-export default function Teachers({ token }: TeachersProps) {
+export default function Teachers() {
+  const api = useApi();
+  const { auth } = useAuth();
+  const { toasts, remove, success, error } = useToast();
+  const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const fetchTeachers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${apiUrl}/staff`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch staff');
-      const data = await response.json();
+      const data = await api.get('/staff');
       setTeachers(data);
-      setError(null);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, token]);
+  }, [api]);
 
   useEffect(() => {
     fetchTeachers();
@@ -69,9 +66,6 @@ export default function Teachers({ token }: TeachersProps) {
 
   const handleSubmit = async (data: any) => {
     try {
-      const url = modalMode === 'add' ? `${apiUrl}/staff` : `${apiUrl}/staff/${selectedTeacher?.id}`;
-      const method = modalMode === 'add' ? 'POST' : 'PUT';
-      
       const payload = {
         ...data,
         role: 'Teacher',
@@ -79,37 +73,33 @@ export default function Teachers({ token }: TeachersProps) {
         dateOfJoining: data.dateOfJoining || null
       };
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) throw new Error(`Failed to ${modalMode} teacher`);
+      if (modalMode === 'add') {
+        await api.post('/staff', payload);
+      } else {
+        await api.put(`/staff/${selectedTeacher?.id}`, payload);
+      }
       
       await fetchTeachers();
       setShowModal(false);
       setSelectedTeacher(null);
+      success(modalMode === 'add' ? 'Staff member added successfully.' : 'Staff profile updated successfully.');
     } catch (err: any) {
-      alert(err.message);
+      error(err.message);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this teacher?')) {
-      try {
-        const response = await fetch(`${apiUrl}/staff/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error('Failed to delete teacher');
-        await fetchTeachers();
-      } catch (err: any) {
-        alert(err.message);
-      }
+    const ok = await confirm(
+      'This staff member will be permanently removed from the system.',
+      'Delete Staff Member?',
+    );
+    if (!ok) return;
+    try {
+      await api.delete(`/staff/${id}`);
+      await fetchTeachers();
+      success('Staff member deleted successfully.');
+    } catch (err: any) {
+      error(err.message);
     }
   };
 
@@ -153,12 +143,16 @@ export default function Teachers({ token }: TeachersProps) {
           <button onClick={() => handleViewClick(teacher)} className="p-2 hover:bg-blue-50 rounded-lg transition-colors text-blue-600" title="View Details">
             <BookOpen className="w-5 h-5" />
           </button>
-          <button onClick={() => handleEditClick(teacher)} className="p-2 hover:bg-gray-50 rounded-lg transition-colors text-gray-600" title="Edit">
-            <Edit className="w-5 h-5" />
-          </button>
-          <button onClick={() => handleDelete(teacher.id)} className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600" title="Delete">
-            <Trash2 className="w-5 h-5" />
-          </button>
+          {auth?.role === 'admin' && (
+            <>
+              <button onClick={() => handleEditClick(teacher)} className="p-2 hover:bg-gray-50 rounded-lg transition-colors text-gray-600" title="Edit">
+                <Edit className="w-5 h-5" />
+              </button>
+              <button onClick={() => handleDelete(teacher.id)} className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600" title="Delete">
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
       </div>
       
@@ -203,6 +197,7 @@ export default function Teachers({ token }: TeachersProps) {
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search by name, subject, or email..."
         isLoading={loading && teachers.length === 0}
+        canAdd={auth?.role === 'admin'}
       />
 
       <Modal
@@ -270,6 +265,16 @@ export default function Teachers({ token }: TeachersProps) {
           </div>
         )}
       </Modal>
+
+      <ToastContainer toasts={toasts} onRemove={remove} />
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import {
   Users,
   GraduationCap,
-  BookOpen,
   TrendingUp,
   Calendar,
   DollarSign,
@@ -10,11 +9,10 @@ import {
   Clock,
   ArrowRight,
   Plus,
-  BarChart3,
   Search
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-
+import { useApi } from '../../hooks/useApi';
 import { StatCard } from '../ui/StatCard';
 import { PageHeader } from '../ui/PageHeader';
 
@@ -35,6 +33,7 @@ interface DashboardData {
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
+  const api = useApi();
   const [summary, setSummary] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,10 +42,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     const loadSummary = async () => {
       try {
         setLoading(true);
-        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const response = await fetch(`${apiBaseUrl}/dashboard`);
-        if (!response.ok) throw new Error('Unable to load dashboard data');
-        const data = await response.json();
+        const data = await api.get('/dashboard');
         setSummary(data);
       } catch (err: any) {
         setError(err.message);
@@ -55,7 +51,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       }
     };
     loadSummary();
-  }, []);
+  }, [api]);
 
   const attendanceRate = useMemo(() => {
     if (!summary || summary.attendanceCount === 0) return 0;

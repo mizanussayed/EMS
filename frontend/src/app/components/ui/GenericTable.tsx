@@ -22,6 +22,10 @@ interface GenericTableProps<T> {
   title: string;
   description?: string;
   stats?: { label: string; value: string | number; color?: string }[];
+  canAdd?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canView?: boolean;
 }
 
 function GenericTable<T extends { id: string | number }>({
@@ -38,7 +42,11 @@ function GenericTable<T extends { id: string | number }>({
   isLoading = false,
   title,
   description,
-  stats = []
+  stats = [],
+  canAdd = true,
+  canEdit = true,
+  canDelete = true,
+  canView = true
 }: GenericTableProps<T>) {
   return (
     <div className="space-y-6">
@@ -47,7 +55,7 @@ function GenericTable<T extends { id: string | number }>({
           <h1 className="text-gray-900 font-bold text-2xl">{title}</h1>
           {description && <p className="text-gray-600 mt-1">{description}</p>}
         </div>
-        {onAdd && (
+        {canAdd && onAdd && (
           <button
             onClick={onAdd}
             className="flex items-center justify-center gap-2 px-6 py-3 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
@@ -88,12 +96,12 @@ function GenericTable<T extends { id: string | number }>({
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 {columns.map((col, idx) => (
-                  <th key={idx} className="px-6 py-5 text-[15px] font-semibold text-gray-700">
+                  <th key={idx} className="px-6 py-2 text-[15px] font-semibold text-gray-700">
                     {col.header}
                   </th>
                 ))}
                 {(onEdit || onDelete || onView) && (
-                  <th className="px-6 py-5 text-[15px] font-semibold text-gray-600 text-center">
+                  <th className="px-6 py-2 text-[15px] font-semibold text-gray-600 text-center">
                     Actions
                   </th>
                 )}
@@ -133,7 +141,7 @@ function GenericTable<T extends { id: string | number }>({
                     {(onEdit || onDelete || onView) && (
                       <td className="px-6 py-5 text-center">
                         <div className="flex items-center justify-center gap-3">
-                          {onView && (
+                          {canView && onView && (
                             <button
                               onClick={() => onView(item)}
                               className="text-blue-500 hover:scale-110 transition-transform"
@@ -142,7 +150,7 @@ function GenericTable<T extends { id: string | number }>({
                               <BookOpen className="w-[18px] h-[18px]" />
                             </button>
                           )}
-                          {onEdit && (
+                          {canEdit && onEdit && (
                             <button
                               onClick={() => onEdit(item)}
                               className="text-gray-500 hover:scale-110 transition-transform"
@@ -151,7 +159,7 @@ function GenericTable<T extends { id: string | number }>({
                               <Edit className="w-[18px] h-[18px]" />
                             </button>
                           )}
-                          {onDelete && (
+                          {canDelete && onDelete && (
                             <button
                               onClick={() => onDelete(item)}
                               className="text-red-500 hover:scale-110 transition-transform"

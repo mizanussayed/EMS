@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, BookOpen, GraduationCap, Edit, Trash2, X, Eye } from 'lucide-react';
+import { BookOpen, GraduationCap, Award, Users } from 'lucide-react';
+import { useApi } from '../../hooks/useApi';
+import { useAuth } from '../../context/AuthContext';
+import { useToast, useConfirm } from '../../hooks/useToast';
+import GenericTable, { Column } from '../ui/GenericTable';
+import Modal from '../ui/Modal';
+import GenericForm, { FormField } from '../ui/GenericForm';
+import { ToastContainer } from '../ui/Toast';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface Subject {
   id: number;
@@ -12,582 +20,230 @@ interface Subject {
   type: string;
 }
 
-interface SubjectsProps {
-  token: string;
-}
+const formFields: FormField[] = [
+  { name: 'name', label: 'Subject Name', type: 'text', placeholder: 'e.g., Mathematics', required: true },
+  { name: 'code', label: 'Subject Code', type: 'text', placeholder: 'e.g., MATH-10', required: true },
+  { name: 'teacher', label: 'Assigned Teacher', type: 'text', placeholder: 'Search staff...' },
+  { name: 'classes', label: 'Classes', type: 'text', placeholder: 'e.g., Grade 10A, 10B' },
+  { name: 'credits', label: 'Credits', type: 'number', placeholder: '3' },
+  { name: 'type', label: 'Type', type: 'select', options: [{label: 'Core', value: 'Core'}, {label: 'Elective', value: 'Elective'}] },
+];
 
-export default function Subjects({ token }: SubjectsProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('All');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+export default function Subjects() {
+  const api = useApi();
+  const { auth } = useAuth();
+  const { toasts, remove, success, error } = useToast();
+  const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const [subjects, setSubjects] = useState<Subject[]>([]);
-
-  const [formData, setFormData] = useState({
-    name: '',
-    code: '',
-    teacher: '',
-    classes: '',
-    credits: '3',
-    type: 'Core',
-  });
-
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
 
   const fetchSubjects = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${apiUrl}/subjects`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch subjects');
-      const data = await response.json();
+      const data = await api.get('/subjects');
       setSubjects(data);
-      setError(null);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, token]);
+  }, [api]);
 
   useEffect(() => {
     fetchSubjects();
   }, [fetchSubjects]);
 
-  const filteredSubjects = subjects.filter(subject => {
-    const matchesSearch = subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (subject.teacher?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'All' || subject.type === filterType;
-    return matchesSearch && matchesType;
-  });
-
-  const handleAddSubject = async () => {
+  const handleSubmit = async (data: any) => {
     try {
-      const response = await fetch(`${apiUrl}/subjects`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          code: formData.code,
-          teacher: formData.teacher,
-          classes: formData.classes,
-          credits: parseInt(formData.credits),
-          type: formData.type
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to add subject');
-      
+      if (modalMode === 'add') {
+        await api.post('/subjects', data);
+      } else {
+        await api.put(`/subjects/${selectedSubject?.id}`, data);
+      }
       await fetchSubjects();
-      setShowAddModal(false);
-      resetForm();
+      setShowModal(false);
+      success(modalMode === 'add' ? 'Subject added successfully.' : 'Subject updated successfully.');
     } catch (err: any) {
-      alert(err.message);
+      error(err.message);
     }
   };
 
-  const handleEditSubject = async () => {
-    if (selectedSubject) {
-      try {
-        const response = await fetch(`${apiUrl}/subjects/${selectedSubject.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            code: formData.code,
-            teacher: formData.teacher,
-            classes: formData.classes,
-            credits: parseInt(formData.credits),
-            type: formData.type
-          })
-        });
-
-        if (!response.ok) throw new Error('Failed to update subject');
-        
-        await fetchSubjects();
-        setShowEditModal(false);
-        setSelectedSubject(null);
-        resetForm();
-      } catch (err: any) {
-        alert(err.message);
-      }
+  const handleDelete = async (subject: Subject) => {
+    const ok = await confirm(
+      `This will permanently remove ${subject.name} from the curriculum.`,
+      'Delete Subject?',
+    );
+    if (!ok) return;
+    try {
+      await api.delete(`/subjects/${subject.id}`);
+      await fetchSubjects();
+      success('Subject deleted successfully.');
+    } catch (err: any) {
+      error(err.message);
     }
   };
 
-  const handleDeleteSubject = async (id: number) => {
-    if (confirm('Are you sure you want to delete this subject?')) {
-      try {
-        const response = await fetch(`${apiUrl}/subjects/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) throw new Error('Failed to delete subject');
-        
-        await fetchSubjects();
-      } catch (err: any) {
-        alert(err.message);
-      }
+  const columns: Column<Subject>[] = [
+    { 
+      header: 'Subject Code', 
+      accessor: (s) => (
+        <span className="font-bold text-gray-900">{s.code}</span>
+      )
+    },
+    { 
+      header: 'Subject Name', 
+      accessor: (s) => (
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-[#2D6CDF]" />
+          <span className="text-gray-900 font-medium">{s.name}</span>
+        </div>
+      )
+    },
+    { 
+      header: 'Teacher', 
+      accessor: (s) => (
+        <div className="flex items-center gap-2 text-gray-600">
+          <GraduationCap className="w-4 h-4 text-gray-400" />
+          <span>{s.teacher || 'Not Assigned'}</span>
+        </div>
+      )
+    },
+    { header: 'Classes', accessor: 'classes' },
+    { header: 'Students', accessor: 'students' },
+    { header: 'Credits', accessor: 'credits' },
+    { 
+      header: 'Type', 
+      accessor: (s) => (
+        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+          s.type === 'Core' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+        }`}>
+          {s.type}
+        </span>
+      )
     }
-  };
+  ];
 
-  const handleEditClick = (subject: Subject) => {
+  const stats = [
+    { label: 'Total Subjects', value: subjects.length },
+    { label: 'Core Subjects', value: subjects.filter(s => s.type === 'Core').length, color: 'text-blue-600' },
+    { label: 'Electives', value: subjects.filter(s => s.type === 'Elective').length, color: 'text-purple-600' },
+    { label: 'Teachers', value: new Set(subjects.map(s => s.teacher).filter(Boolean)).size, color: 'text-green-600' },
+  ];
+
+  const filteredSubjects = subjects.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.teacher?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+  );
+
+  function handleEditClick(subject: Subject) {
     setSelectedSubject(subject);
-    setFormData({
-      name: subject.name,
-      code: subject.code,
-      teacher: subject.teacher || '',
-      classes: subject.classes || '',
-      credits: String(subject.credits),
-      type: subject.type,
-    });
-    setShowEditModal(true);
-  };
-
-  const handleViewClick = (subject: Subject) => {
-    setSelectedSubject(subject);
-    setShowViewModal(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      code: '',
-      teacher: '',
-      classes: '',
-      credits: '3',
-      type: 'Core',
-    });
-  };
-
-  const coreSubjects = subjects.filter(s => s.type === 'Core').length;
-  const electives = subjects.filter(s => s.type === 'Elective').length;
-
-  if (loading && subjects.length === 0) {
-    return <div className="p-6 text-center">Loading subjects...</div>;
+    setModalMode('edit');
+    setShowModal(true);
   }
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-gray-900 mb-2">Subject Management</h1>
-        <p className="text-gray-600">Manage subjects and curriculum</p>
-      </div>
+      <GenericTable
+        title="Subject Management"
+        description="Manage subjects and curriculum"
+        stats={stats}
+        data={filteredSubjects}
+        columns={columns}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onAdd={() => { setModalMode('add'); setSelectedSubject(null); setShowModal(true); }}
+        addLabel="Add Subject"
+        onView={(s) => { setSelectedSubject(s); setShowViewModal(true); }}
+        onEdit={handleEditClick}
+        onDelete={handleDelete}
+        isLoading={loading && subjects.length === 0}
+        canAdd={auth?.role === 'admin'}
+        canEdit={auth?.role === 'admin'}
+        canDelete={auth?.role === 'admin'}
+      />
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={modalMode === 'add' ? 'Add New Subject' : 'Edit Subject'}
+      >
+        <GenericForm
+          fields={formFields}
+          initialData={selectedSubject || { type: 'Core', credits: 3 }}
+          onSubmit={handleSubmit}
+          onCancel={() => setShowModal(false)}
+          submitLabel={modalMode === 'add' ? 'Add Subject' : 'Save Changes'}
+        />
+      </Modal>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Total Subjects</p>
-          <p className="text-gray-900 mt-1 font-semibold">{subjects.length}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Core Subjects</p>
-          <p className="text-blue-600 mt-1 font-semibold">{coreSubjects}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Electives</p>
-          <p className="text-purple-600 mt-1 font-semibold">{electives}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <p className="text-gray-600 text-sm">Teachers Assigned</p>
-          <p className="text-green-600 mt-1 font-semibold">{new Set(subjects.map(s => s.teacher).filter(Boolean)).size}</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-md p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex-1 w-full sm:max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search subjects..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-            >
-              <option>All</option>
-              <option>Core</option>
-              <option>Elective</option>
-            </select>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add Subject
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-gray-700 font-semibold">Subject Code</th>
-                <th className="px-6 py-4 text-left text-gray-700 font-semibold">Subject Name</th>
-                <th className="px-6 py-4 text-left text-gray-700 font-semibold">Teacher</th>
-                <th className="px-6 py-4 text-left text-gray-700 font-semibold">Classes</th>
-                <th className="px-6 py-4 text-center text-gray-700 font-semibold">Students</th>
-                <th className="px-6 py-4 text-center text-gray-700 font-semibold">Credits</th>
-                <th className="px-6 py-4 text-center text-gray-700 font-semibold">Type</th>
-                <th className="px-6 py-4 text-center text-gray-700 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredSubjects.map((subject) => (
-                <tr key={subject.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-gray-900 font-medium">{subject.code}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-[#2D6CDF]" />
-                      <span className="text-gray-900">{subject.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-600">{subject.teacher || 'Not Assigned'}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">{subject.classes || 'None'}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{subject.students || 0}</td>
-                  <td className="px-6 py-4 text-center text-gray-900">{subject.credits}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      subject.type === 'Core' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                    }`}>
-                      {subject.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => handleViewClick(subject)}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4 text-blue-600" />
-                      </button>
-                      <button
-                        onClick={() => handleEditClick(subject)}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4 text-gray-600" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSubject(subject.id)}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {filteredSubjects.length === 0 && !loading && (
-          <div className="text-center py-12 text-gray-500">
-            No subjects found matching your criteria
-          </div>
-        )}
-      </div>
-
-      {/* Add Subject Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900 text-xl font-semibold">Add New Subject</h2>
-              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Subject Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    placeholder="e.g., Mathematics"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Subject Code *</label>
-                  <input
-                    type="text"
-                    value={formData.code}
-                    onChange={(e) => setFormData({...formData, code: e.target.value})}
-                    placeholder="e.g., MATH-10"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Teacher</label>
-                  <input
-                    type="text"
-                    value={formData.teacher}
-                    onChange={(e) => setFormData({...formData, teacher: e.target.value})}
-                    placeholder="Search staff..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Classes</label>
-                  <input
-                    type="text"
-                    value={formData.classes}
-                    onChange={(e) => setFormData({...formData, classes: e.target.value})}
-                    placeholder="e.g., Grade 10A, 10B"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Credits</label>
-                  <input
-                    type="number"
-                    value={formData.credits}
-                    onChange={(e) => setFormData({...formData, credits: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Type *</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  >
-                    <option>Core</option>
-                    <option>Elective</option>
-                  </select>
-                </div>
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        title="Subject Details"
+      >
+        {selectedSubject && (
+          <div className="space-y-8">
+            <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">
+                {selectedSubject.name.charAt(0)}
+              </div>
+              <div>
+                <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedSubject.name}</h3>
+                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedSubject.code}</p>
               </div>
             </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddSubject}
-                disabled={!formData.name || !formData.code}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Subject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Edit Subject Modal */}
-      {showEditModal && selectedSubject && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900 text-xl font-semibold">Edit Subject - {selectedSubject.name}</h2>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Subject Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Subject Code *</label>
-                  <input
-                    type="text"
-                    value={formData.code}
-                    onChange={(e) => setFormData({...formData, code: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Teacher</label>
-                  <input
-                    type="text"
-                    value={formData.teacher}
-                    onChange={(e) => setFormData({...formData, teacher: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Classes</label>
-                  <input
-                    type="text"
-                    value={formData.classes}
-                    onChange={(e) => setFormData({...formData, classes: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Credits</label>
-                  <input
-                    type="number"
-                    value={formData.credits}
-                    onChange={(e) => setFormData({...formData, credits: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-1">Type *</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]"
-                  >
-                    <option>Core</option>
-                    <option>Elective</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  resetForm();
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditSubject}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Subject Modal */}
-      {showViewModal && selectedSubject && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-gray-900 text-xl font-semibold">Subject Details</h2>
-              <button onClick={() => setShowViewModal(false)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Subject ID</label>
-                  <p className="text-gray-900">{selectedSubject.id}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Subject Code</label>
-                  <p className="text-gray-900">{selectedSubject.code}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm text-gray-500 font-medium">Subject Name</label>
-                  <p className="text-gray-900">{selectedSubject.name}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Teacher</label>
-                  <p className="text-gray-900">{selectedSubject.teacher || 'Not Assigned'}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Credits</label>
-                  <p className="text-gray-900">{selectedSubject.credits}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm text-gray-500 font-medium">Classes</label>
-                  <p className="text-gray-900">{selectedSubject.classes || 'None'}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Total Students</label>
-                  <p className="text-gray-900">{selectedSubject.students || 0}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 font-medium">Type</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {[
+                { icon: BookOpen, label: 'Subject Name', value: selectedSubject.name },
+                { icon: GraduationCap, label: 'Assigned Teacher', value: selectedSubject.teacher || 'Not Assigned' },
+                { icon: Users, label: 'Total Students', value: selectedSubject.students || 0 },
+                { icon: Award, label: 'Credits', value: selectedSubject.credits },
+                { icon: Award, label: 'Subject Type', value: selectedSubject.type },
+                { icon: Users, label: 'Assigned Classes', value: selectedSubject.classes || 'None' },
+              ].map((item, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
+                    <item.icon className="w-5 h-5" />
+                  </div>
                   <div>
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      selectedSubject.type === 'Core' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                    }`}>
-                      {selectedSubject.type}
-                    </span>
+                    <label className="text-xs text-gray-400 font-bold uppercase tracking-widest block">{item.label}</label>
+                    <p className="text-gray-900 font-bold">{item.value}</p>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  setShowViewModal(false);
-                  handleEditClick(selectedSubject);
-                }}
-                className="px-4 py-2 bg-[#2D6CDF] text-white rounded-lg hover:bg-[#1a4ba8] transition-colors"
-              >
-                Edit Subject
-              </button>
+            
+            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+              <button onClick={() => setShowViewModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all">Close</button>
+              {auth?.role === 'admin' && (
+                <button 
+                  onClick={() => { setShowViewModal(false); handleEditClick(selectedSubject); }}
+                  className="px-8 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
+                >
+                  Edit Subject
+                </button>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      <ToastContainer toasts={toasts} onRemove={remove} />
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 }

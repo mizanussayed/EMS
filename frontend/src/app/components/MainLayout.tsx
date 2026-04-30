@@ -2,18 +2,13 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { useAuth } from '../context/AuthContext';
 
-interface MainLayoutProps {
-  auth: {
-    accessToken: string;
-    role: string;
-    userName: string;
-  };
-  onLogout: () => void;
-}
-
-export default function MainLayout({ auth, onLogout }: MainLayoutProps) {
+export default function MainLayout() {
+  const { auth, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  if (!auth) return null;
 
   return (
     <div className="flex h-screen bg-[#F5F7FA] overflow-hidden">
@@ -21,7 +16,7 @@ export default function MainLayout({ auth, onLogout }: MainLayoutProps) {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header
-          onLogout={onLogout}
+          onLogout={logout}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           role={auth.role}
           userName={auth.userName}
