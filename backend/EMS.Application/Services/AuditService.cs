@@ -5,24 +5,15 @@ using System.Security.Claims;
 
 namespace EMS.Application.Services;
 
-public class AuditService : IAuditService
+public class AuditService(IApplicationDbContext db, IHttpContextAccessor httpContextAccessor) : IAuditService
 {
-    private readonly IApplicationDbContext _db;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public AuditService(IApplicationDbContext db, IHttpContextAccessor httpContextAccessor)
-    {
-        _db = db;
-        _httpContextAccessor = httpContextAccessor;
-    }
-
     public async Task LogAsync(string action, string entityName, string? entityId, string? details)
     {
-        var user = _httpContextAccessor.HttpContext?.User;
+        var user = httpContextAccessor.HttpContext?.User;
         var userName = user?.Identity?.Name;
         var role = user?.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.Role)?.Value;
 
-        _db.AuditLogs.Add(new AuditLog
+        db.AuditLogs.Add(new AuditLog
         {
             Action = action,
             EntityName = entityName,
@@ -33,6 +24,6 @@ public class AuditService : IAuditService
             Timestamp = DateTimeOffset.UtcNow
         });
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
     }
 }

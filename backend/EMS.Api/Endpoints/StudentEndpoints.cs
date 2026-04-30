@@ -13,7 +13,7 @@ public static class StudentEndpoints
     {
         var studentGroup = app.MapGroup("/api/students")
             .WithTags("Student")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("StaffOnly");
 
         studentGroup.MapGet("", async (IApplicationDbContext db) =>
             await db.Students.AsNoTracking().OrderBy(s => s.LastName).ToListAsync())

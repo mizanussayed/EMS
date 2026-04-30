@@ -17,7 +17,7 @@ export default function Header({ onLogout, onToggleSidebar, userName, role }: He
         <div className="flex items-center gap-4 flex-1">
           <button
             onClick={onToggleSidebar}
-            className="p-2 hover:bg-gray-100 rounded-lg lg:hidden"
+            className="p-2 hover:bg-gray-100 rounded-lg"
           >
             <Menu className="w-6 h-6 text-gray-600" />
           </button>

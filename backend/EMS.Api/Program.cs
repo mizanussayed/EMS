@@ -5,7 +5,10 @@ using EMS.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.OpenApi;
 using System.Text;
+using System.Collections.Generic;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,11 +23,6 @@ builder.Services.Configure<JwtOptions>(jwtSection);
 var jwtOptions = jwtSection.Get<JwtOptions>()
     ?? throw new InvalidOperationException("JWT configuration is missing");
 
-// Validate Secret
-if (string.IsNullOrWhiteSpace(jwtOptions.Secret) || jwtOptions.Secret.Length < 32)
-{
-    throw new InvalidOperationException("JWT Secret must be at least 32 characters long.");
-}
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -51,9 +49,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // ----------------------
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("StaffOnly", policy =>
-        policy.RequireRole("Admin", "Teacher", "Accountant"))
+        policy.RequireRole("admin", "teacher", "Accountant"))
     .AddPolicy("AdminOnly", policy =>
-        policy.RequireRole("Admin"));
+        policy.RequireRole("admin"));
 
 
 builder.Services.AddCors(options =>
@@ -68,7 +66,35 @@ builder.Services.AddCors(options =>
 });
 
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        var securityScheme = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Name = "Bearer",
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description = "Enter your JWT token"
+        };
+
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes.Add("Bearer", securityScheme);
+
+        document?.Security?.Add(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecuritySchemeReference("Bearer", document),
+                new List<string>()
+            }
+        });
+
+        return Task.CompletedTask;
+    });
+});
 
 
 var app = builder.Build();
@@ -97,7 +123,7 @@ app.MapScalarApiReference("/openapi", options =>
 });
 
 // API Endpoints
-
+app.MapAuthEndpoints();
 app.MapDashboardEndpoints();
 app.MapStudentEndpoints();
 app.MapClassEndpoints();
