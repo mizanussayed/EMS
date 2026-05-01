@@ -14,11 +14,11 @@ import Library from './components/pages/Library';
 import Reports from './components/pages/Reports';
 import Results from './components/pages/Results';
 import Settings from './components/pages/Settings';
-import Students from './components/pages/Students';
+import Students from './components/pages/studnet/Students';
+import StudentDetail from './components/pages/studnet/StudentDetail';
 import Subjects from './components/pages/Subjects';
 import Teachers from './components/pages/Teachers';
 import Timetable from './components/pages/Timetable';
-import StudentMobileDashboard from './components/StudentMobileDashboard';
 import TeacherDashboard from './components/TeacherDashboard';
 
 export default function AppRoutes() {
@@ -34,7 +34,6 @@ export default function AppRoutes() {
     const roleHome: Record<string, string> = {
       admin: '/dashboard',
       teacher: '/teacher',
-      student: '/student',
     };
 
     const target = roleHome[auth.role] || '/dashboard';
@@ -65,6 +64,7 @@ export default function AppRoutes() {
         <Route element={<MainLayout />}>
           <Route path="/dashboard" element={<Dashboard onNavigate={handleNavigate} />} />
           <Route path="/students" element={<Students />} />
+          <Route path="/students/:id" element={<StudentDetail />} />
           <Route path="/teachers" element={<Teachers />} />
           <Route path="/classes" element={<Classes />} />
           <Route path="/subjects" element={<Subjects />} />
@@ -82,10 +82,6 @@ export default function AppRoutes() {
 
       <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
         <Route path="/teacher" element={<TeacherDashboard onNavigate={() => {}} />} />
-      </Route>
-
-      <Route element={<ProtectedRoute allowedRoles={['student']} />}>
-        <Route path="/student" element={<StudentMobileDashboard onNavigate={() => {}} />} />
       </Route>
 
       <Route

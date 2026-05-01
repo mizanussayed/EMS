@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Edit, Trash2, BookOpen, MoreVertical } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Eye, MoreVertical } from 'lucide-react';
 
 export interface Column<T> {
   header: string;
@@ -147,7 +147,7 @@ function GenericTable<T extends { id: string | number }>({
                               className="text-blue-500 hover:scale-110 transition-transform"
                               title="View Details"
                             >
-                              <BookOpen className="w-[18px] h-[18px]" />
+                              <Eye className="w-[18px] h-[18px]" />
                             </button>
                           )}
                           {canEdit && onEdit && (

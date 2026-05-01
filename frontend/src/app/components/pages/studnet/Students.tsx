@@ -1,32 +1,16 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Phone, BookOpen, User, Calendar, MapPin } from 'lucide-react';
-import { useApi } from '../../hooks/useApi';
-import { useAuth } from '../../context/AuthContext';
-import { useToast, useConfirm } from '../../hooks/useToast';
-import GenericTable, { Column } from '../ui/GenericTable';
-import Modal from '../ui/Modal';
-import GenericForm, { FormField } from '../ui/GenericForm';
-import { ToastContainer } from '../ui/Toast';
-import ConfirmDialog from '../ui/ConfirmDialog';
+import { useApi } from '@/hooks/useApi';
+import { useAuth } from '@/context/AuthContext';
+import { useToast, useConfirm } from '@/hooks/useToast';
+import GenericTable, { Column } from '@/components/ui/GenericTable';
+import Modal from '@/components/ui/Modal';
+import GenericForm, { FormField } from '@/components/ui/GenericForm';
+import { ToastContainer } from '@/components/ui/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
-interface Student {
-  id: number;
-  rollNo: string;
-  name: string;
-  className: string;
-  section?: string;
-  email?: string;
-  phone?: string;
-  parent?: string;
-  parentPhone?: string;
-  dateOfBirth?: string;
-  admissionDate?: string;
-  status: 'Active' | 'Inactive';
-  attendance?: string;
-  admissionNumber?: string;
-  address?: string;
-  gender?: string;
-}
+
 
 interface ApiStudent {
   id: number;
@@ -75,6 +59,7 @@ const formFields: FormField[] = [
 
 export default function Students() {
   const api = useApi();
+  const navigate = useNavigate();
   const { auth } = useAuth();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
@@ -92,7 +77,6 @@ export default function Students() {
       const data = await api.get('/students');
       setStudents(data.map(mapStudentFromApi));
     } catch (err: any) {
-      // Errors are already logged in useApi, we can show a toast or alert here if needed
       console.error(err.message);
     } finally {
       setLoading(false);
@@ -201,7 +185,7 @@ export default function Students() {
         onSearchChange={setSearchTerm}
         onAdd={() => { setModalMode('add'); setSelectedStudent(null); setShowModal(true); }}
         addLabel="Add Student"
-        onView={(s) => { setSelectedStudent(s); setShowViewModal(true); }}
+        onView={(s) => navigate(`/students/${s.id}`)}
         onEdit={(s) => { 
           setSelectedStudent(s); 
           setModalMode('edit'); 
