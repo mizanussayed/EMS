@@ -22,6 +22,8 @@ interface GenericTableProps<T> {
   title: string;
   description?: string;
   stats?: { label: string; value: string | number; color?: string }[];
+  customFilters?: React.ReactNode;
+  topActions?: React.ReactNode;
   canAdd?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
@@ -43,6 +45,8 @@ function GenericTable<T extends { id: string | number }>({
   title,
   description,
   stats = [],
+  customFilters,
+  topActions,
   canAdd = true,
   canEdit = true,
   canDelete = true,
@@ -55,15 +59,18 @@ function GenericTable<T extends { id: string | number }>({
           <h1 className="text-gray-900 font-bold text-2xl">{title}</h1>
           {description && <p className="text-gray-600 mt-1">{description}</p>}
         </div>
-        {canAdd && onAdd && (
-          <button
-            onClick={onAdd}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
-          >
-            <Plus className="w-5 h-5" />
-            {addLabel}
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {topActions}
+          {canAdd && onAdd && (
+            <button
+              onClick={onAdd}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
+            >
+              <Plus className="w-5 h-5" />
+              {addLabel}
+            </button>
+          )}
+        </div>
       </div>
 
       {stats.length > 0 && (
@@ -78,18 +85,24 @@ function GenericTable<T extends { id: string | number }>({
       )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-5 border-b border-gray-100">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="w-full pl-11 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all"
-            />
+        {customFilters ? (
+          <div className="p-5 border-b border-gray-100">
+            {customFilters}
           </div>
-        </div>
+        ) : (
+          <div className="p-5 border-b border-gray-100">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full pl-11 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">

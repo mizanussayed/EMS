@@ -11,6 +11,9 @@ public interface IApplicationDbContext
     DbSet<Student> Students { get; }
     DbSet<Attendance> Attendances { get; }
     DbSet<SchoolClass> Classes { get; }
+    DbSet<Shift> Shifts { get; }
+    DbSet<StudentBadge> StudentBadges { get; }
+    DbSet<Section> Sections { get; }
     DbSet<Subject> Subjects { get; }
     DbSet<Staff> Staff { get; }
     DbSet<Exam> Exams { get; }

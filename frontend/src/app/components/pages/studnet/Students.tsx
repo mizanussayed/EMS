@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Phone, BookOpen, User, Calendar, MapPin } from 'lucide-react';
+import { Mail, Phone, BookOpen, User, Calendar, MapPin, Upload, Download, FileText, Search, Filter, X } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, useConfirm } from '@/hooks/useToast';
@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal';
 import GenericForm, { FormField } from '@/components/ui/GenericForm';
 import { ToastContainer } from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import type { Student } from './Studnet';
 
 
 
@@ -65,6 +66,10 @@ export default function Students() {
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterClass, setFilterClass] = useState('All Classes');
+  const [filterSection, setFilterSection] = useState('All Sections');
+  const [filterShift, setFilterShift] = useState('All Shifts');
+  const [filterBadge, setFilterBadge] = useState('All Badges');
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -119,7 +124,7 @@ export default function Students() {
 
   const columns: Column<Student>[] = [
     { 
-      header: 'Student', 
+      header: 'Student Info', 
       accessor: (s) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">
@@ -127,43 +132,128 @@ export default function Students() {
           </div>
           <div>
             <div className="font-bold text-gray-900">{s.name}</div>
-            <div className="text-xs text-gray-400">{s.rollNo}</div>
+            <div className="text-xs text-gray-400">ID: {s.rollNo}</div>
           </div>
         </div>
       )
     },
-    { header: 'Class', accessor: 'className' },
+    { 
+      header: 'Class & Section', 
+      accessor: (s) => (
+        <div>
+          <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-bold mr-1">{s.className}</span>
+          {s.section && <span className="px-2 py-1 bg-teal-50 text-teal-600 rounded text-xs font-bold">{s.section}</span>}
+        </div>
+      )
+    },
+    { 
+      header: 'Shift', 
+      accessor: () => (
+        <span className="px-2 py-1 bg-amber-50 text-amber-600 rounded text-xs font-bold">Day</span>
+      )
+    },
+    { 
+      header: 'Badge', 
+      accessor: () => (
+        <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-xs font-bold">Resident</span>
+      )
+    },
     { 
       header: 'Contact', 
       accessor: (s) => (
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-gray-600">
-            <Mail className="w-3 h-3 text-gray-400" />
-            <span>{s.email || '—'}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
             <Phone className="w-3 h-3 text-gray-400" />
-            <span>{s.phone || '—'}</span>
+            <span>{s.phone || s.parentPhone || 'N/A'}</span>
           </div>
         </div>
       )
     },
-    { header: 'Parent', accessor: 'parent' },
     { 
-      header: 'Status', 
-      accessor: (s) => (
-        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-          s.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
-        }`}>
-          {s.status}
-        </span>
-      )
+      header: 'Waiver', 
+      accessor: () => <span className="text-gray-500 text-sm">No waiver</span>
     }
   ];
 
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.rollNo.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.rollNo.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesClass = filterClass === 'All Classes' || s.className === filterClass;
+    const matchesSection = filterSection === 'All Sections' || s.section === filterSection;
+    return matchesSearch && matchesClass && matchesSection;
+  });
+
+  const customFilters = (
+    <div className="flex flex-col md:flex-row md:items-center gap-4">
+      <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold border border-indigo-100 shrink-0">
+        <Filter className="w-4 h-4" /> Filters
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 w-full">
+        <select 
+          value={filterClass} onChange={e => setFilterClass(e.target.value)}
+          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium"
+        >
+          <option>All Classes</option>
+          <option>Grade 1</option>
+          <option>Grade 2</option>
+        </select>
+        <select 
+          value={filterSection} onChange={e => setFilterSection(e.target.value)}
+          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium"
+        >
+          <option>All Sections</option>
+          <option>A</option>
+          <option>B</option>
+        </select>
+        <select 
+          value={filterShift} onChange={e => setFilterShift(e.target.value)}
+          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium"
+        >
+          <option>All Shifts</option>
+          <option>Morning</option>
+          <option>Day</option>
+        </select>
+        <select 
+          value={filterBadge} onChange={e => setFilterBadge(e.target.value)}
+          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium"
+        >
+          <option>All Badges</option>
+          <option>Resident</option>
+          <option>Non-Resident</option>
+        </select>
+        <div className="relative w-full flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name, ID..."
+              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium"
+            />
+          </div>
+          <button onClick={() => {setSearchTerm(''); setFilterClass('All Classes'); setFilterSection('All Sections'); setFilterShift('All Shifts'); setFilterBadge('All Badges');}} className="p-2.5 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-xl transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const topActions = (
+    <>
+      <button className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all text-sm shadow-md shadow-amber-500/20">
+        <Upload className="w-4 h-4" /> Bulk Import
+      </button>
+      <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all text-sm shadow-md shadow-emerald-600/20">
+        <Download className="w-4 h-4" /> Export CSV
+      </button>
+      <button className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all text-sm shadow-md shadow-rose-600/20">
+        <FileText className="w-4 h-4" /> Export PDF
+      </button>
+      <button className="flex items-center gap-2 px-4 py-2.5 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all text-sm shadow-md shadow-cyan-600/20">
+        Inactive Students
+      </button>
+    </>
   );
 
   const stats = [
@@ -183,6 +273,8 @@ export default function Students() {
         columns={columns}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
+        customFilters={customFilters}
+        topActions={topActions}
         onAdd={() => { setModalMode('add'); setSelectedStudent(null); setShowModal(true); }}
         addLabel="Add Student"
         onView={(s) => navigate(`/students/${s.id}`)}

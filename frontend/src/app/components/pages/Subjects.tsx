@@ -41,6 +41,7 @@ export default function Subjects() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   const fetchSubjects = useCallback(async () => {
     try {
@@ -57,6 +58,46 @@ export default function Subjects() {
   useEffect(() => {
     fetchSubjects();
   }, [fetchSubjects]);
+
+  const handleFileChange = (f: File | null) => {
+    setImportFile(f);
+  };
+
+  const importCSV = async () => {
+    if (!importFile) return error('Select a CSV file first');
+    const text = await importFile.text();
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return error('Empty CSV');
+    const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const rows = lines.slice(1).map(line => line.split(',').map(c => c.trim()));
+
+    const items = rows.map(cols => {
+      const obj: any = {};
+      cols.forEach((val, i) => {
+        const key = header[i] || `col${i}`;
+        obj[key] = val;
+      });
+      // map common fields
+      return {
+        name: obj['subject name'] || obj['name'] || obj['subject'] || '',
+        code: obj['code'] || '',
+        credits: Number(obj['credits'] || obj['credit'] || 0),
+        type: obj['type'] || 'Core',
+        teacher: obj['teacher'] || ''
+      };
+    }).filter(i => i.name);
+
+    if (items.length === 0) return error('No valid rows to import');
+
+    try {
+      for (const item of items) {
+        await api.post('/subjects', item);
+      }
+      await fetchSubjects();
+      setImportFile(null);
+      success(`Imported ${items.length} subjects`);
+    } catch (err: any) { error(err.message); }
+  };
 
   const handleSubmit = async (data: any) => {
     try {
@@ -149,6 +190,21 @@ export default function Subjects() {
 
   return (
     <div className="p-6">
+      <div className="mb-6 flex items-center gap-3">
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+          className=""
+        />
+        <button onClick={importCSV} className="px-4 py-2 bg-green-500 text-white rounded-md">Import CSV</button>
+        <button onClick={() => {
+          const sample = 'Subject Name,Code,Credits,Type,Teacher\nMathematics,MATH-10,3,Core,John Doe\nEnglish,ENG-10,3,Core,Jane Smith';
+          const blob = new Blob([sample], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = 'subjects-sample.csv'; a.click(); URL.revokeObjectURL(url);
+        }} className="px-4 py-2 bg-gray-600 text-white rounded-md">Sample CSV</button>
+      </div>
       <GenericTable
         title="Subject Management"
         description="Manage subjects and curriculum"

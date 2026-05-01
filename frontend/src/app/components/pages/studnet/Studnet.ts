@@ -1,4 +1,4 @@
-interface Student {
+export interface Student {
   id: number;
   rollNo: string;
   name: string;

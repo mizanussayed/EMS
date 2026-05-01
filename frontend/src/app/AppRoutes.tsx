@@ -6,6 +6,9 @@ import MainLayout from './components/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Attendance from './components/pages/Attendance';
 import Classes from './components/pages/Classes';
+import Shifts from './components/pages/Shifts';
+import Badges from './components/pages/Badges';
+import Sections from './components/pages/Sections';
 import Dashboard from './components/pages/Dashboard';
 import Events from './components/pages/Events';
 import Exams from './components/pages/Exams';
@@ -67,11 +70,15 @@ export default function AppRoutes() {
           <Route path="/students/:id" element={<StudentDetail />} />
           <Route path="/teachers" element={<Teachers />} />
           <Route path="/classes" element={<Classes />} />
+          <Route path="/shifts" element={<Shifts />} />
+          <Route path="/badges" element={<Badges />} />
+          <Route path="/sections" element={<Sections />} />
           <Route path="/subjects" element={<Subjects />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/exams" element={<Exams />} />
           <Route path="/results" element={<Results />} />
           <Route path="/timetable" element={<Timetable />} />
+          <Route path="/routine" element={<Timetable />} />
           <Route path="/fees" element={<Fees />} />
           <Route path="/library" element={<Library />} />
           <Route path="/events" element={<Events />} />
