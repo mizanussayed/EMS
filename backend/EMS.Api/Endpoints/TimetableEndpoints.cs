@@ -10,7 +10,7 @@ public static class TimetableEndpoints
     {
         var timetableGroup = app.MapGroup("/api/timetable")
             .WithTags("Timetable")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("StaffOnly");
 
         timetableGroup.MapGet("", async (IApplicationDbContext db) =>
             await db.TimetableEntries.AsNoTracking().ToListAsync())
@@ -32,6 +32,7 @@ public static class TimetableEndpoints
             await audit.LogAsync("CREATE", "Timetable", entry.Id.ToString(), $"Timetable entry for {entry.ClassName} - {entry.SubjectName} created.");
             return Results.Created($"/api/timetable/{entry.Id}", entry);
         })
+        .RequireAuthorization("AdminOnly")
         .WithName("CreateTimetableEntry");
 
         timetableGroup.MapPut("/{id:int}", async (int id, TimetableEntry update, IApplicationDbContext db, IAuditService audit) =>
@@ -51,6 +52,7 @@ public static class TimetableEndpoints
             await audit.LogAsync("UPDATE", "Timetable", id.ToString(), "Timetable entry updated.");
             return Results.NoContent();
         })
+        .RequireAuthorization("AdminOnly")
         .WithName("UpdateTimetableEntry");
 
         timetableGroup.MapDelete("/{id:int}", async (int id, IApplicationDbContext db, IAuditService audit) =>
@@ -63,6 +65,7 @@ public static class TimetableEndpoints
             await audit.LogAsync("DELETE", "Timetable", id.ToString(), "Timetable entry deleted.");
             return Results.NoContent();
         })
+        .RequireAuthorization("AdminOnly")
         .WithName("DeleteTimetableEntry");
 
         return app;

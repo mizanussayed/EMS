@@ -75,7 +75,7 @@ public static class AuthEndpoints
             db.RefreshTokens.Add(refreshToken);
             await db.SaveChangesAsync();
 
-            return Results.Ok(new AuthResponse(accessToken, user.Role, user.UserName, refreshToken.Token));
+            return Results.Ok(new AuthResponse(accessToken, user.Role.ToUpper(), user.UserName, refreshToken.Token));
         }).WithName("Login");
 
         authGroup.MapPost("/refresh", async (RefreshRequest request, IApplicationDbContext db, ITokenService tokens) =>

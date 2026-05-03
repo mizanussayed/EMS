@@ -1,12 +1,13 @@
+import { SelectItem } from '@/hooks/selectItem';
 import React, { useState, useEffect } from 'react';
 
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'tel' | 'date' | 'textarea' | 'select' | 'number' | 'password' | 'datetime-local';
+  type: 'text' | 'email' | 'tel' | 'date' | 'time' | 'textarea' | 'select' | 'number' | 'password' | 'datetime-local' | 'checkbox';
   placeholder?: string;
   required?: boolean;
-  options?: { label: string; value: any }[];
+  options?: SelectItem[];
   colSpan?: 1 | 2;
   validate?: (value: any) => string | null;
   pattern?: string;
@@ -21,6 +22,7 @@ interface GenericFormProps {
   submitLabel?: string;
   cancelLabel?: string;
   isLoading?: boolean;
+  formCssClass?: string;
 }
 
 const GenericForm: React.FC<GenericFormProps> = ({
@@ -30,7 +32,8 @@ const GenericForm: React.FC<GenericFormProps> = ({
   onCancel,
   submitLabel = 'Submit',
   cancelLabel = 'Cancel',
-  isLoading = false
+  isLoading = false,
+  formCssClass = ''
 }) => {
   const [formData, setFormData] = useState<any>(initialData);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
@@ -85,9 +88,8 @@ const GenericForm: React.FC<GenericFormProps> = ({
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
     // Validate all fields
     const newErrors: Record<string, string | null> = {};
     let hasErrors = false;
@@ -113,7 +115,7 @@ const GenericForm: React.FC<GenericFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className={`space-y-6 ${formCssClass}`}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {fields.map((field) => {
           const hasError = touched[field.name] && errors[field.name];
@@ -155,7 +157,16 @@ const GenericForm: React.FC<GenericFormProps> = ({
                       </option>
                     ))}
                   </select>
-                ) : (
+                ): field.type === 'checkbox' ? (
+                  <input
+                    type={field.type}
+                    checked={formData[field.name] as boolean}
+                    onChange={(e) => handleChange(field, e.target.checked)}
+                    onBlur={() => handleBlur(field)}
+                    className={`w-5 h-5 inline text-[#2D6CDF] border-gray-300 focus:ring-[#2D6CDF] rounded focus:ring-2 transition-all`}
+                  />
+                )
+                : (
                   <input
                     type={field.type}
                     value={formData[field.name] || ''}

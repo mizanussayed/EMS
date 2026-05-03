@@ -40,9 +40,9 @@ function GridList<T extends { id: string | number }>({
         {canAdd && onAdd && (
           <button
             onClick={onAdd}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             {addLabel}
           </button>
         )}
@@ -59,7 +59,7 @@ function GridList<T extends { id: string | number }>({
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
@@ -67,7 +67,7 @@ function GridList<T extends { id: string | number }>({
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all"
+            className="w-full pl-11 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 focus:border-[#2D6CDF] transition-all"
           />
         </div>
       </div>
@@ -88,7 +88,7 @@ function GridList<T extends { id: string | number }>({
           <p className="text-gray-500">We couldn't find any records matching your search</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 hover:bg-gray-100 transition-colors">
           {data.map((item) => (
             <React.Fragment key={item.id}>
               {renderCard(item)}

@@ -8,7 +8,6 @@ import Attendance from './components/pages/Attendance';
 import Classes from './components/pages/Classes';
 import Shifts from './components/pages/Shifts';
 import Badges from './components/pages/Badges';
-import Sections from './components/pages/Sections';
 import Dashboard from './components/pages/Dashboard';
 import Events from './components/pages/Events';
 import Exams from './components/pages/Exams';
@@ -17,8 +16,8 @@ import Library from './components/pages/Library';
 import Reports from './components/pages/Reports';
 import Results from './components/pages/Results';
 import Settings from './components/pages/Settings';
-import Students from './components/pages/studnet/Students';
-import StudentDetail from './components/pages/studnet/StudentDetail';
+import Students from './components/pages/student/Students';
+import StudentDetail from './components/pages/student/StudentDetail';
 import Subjects from './components/pages/Subjects';
 import Teachers from './components/pages/Teachers';
 import Timetable from './components/pages/Timetable';
@@ -39,7 +38,7 @@ export default function AppRoutes() {
       teacher: '/teacher',
     };
 
-    const target = roleHome[auth.role] || '/dashboard';
+    const target = roleHome[auth.role.toLowerCase()] || '/dashboard';
     navigate(target, { replace: true });
   }, [auth, location.pathname, navigate]);
 
@@ -72,7 +71,6 @@ export default function AppRoutes() {
           <Route path="/classes" element={<Classes />} />
           <Route path="/shifts" element={<Shifts />} />
           <Route path="/badges" element={<Badges />} />
-          <Route path="/sections" element={<Sections />} />
           <Route path="/subjects" element={<Subjects />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/exams" element={<Exams />} />

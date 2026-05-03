@@ -32,7 +32,7 @@ export default function Sidebar({ isOpen }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    academic: false
+    academic: false,
   });
 
   const toggleGroup = (groupId: string) => {
@@ -52,7 +52,6 @@ export default function Sidebar({ isOpen }: SidebarProps) {
         { id: 'shifts', label: 'Shifts', icon: Clock, page: '/shifts' },
         { id: 'badges', label: 'Student Badges', icon: Award, page: '/badges' },
         { id: 'classes', label: 'Classes', icon: School, page: '/classes' },
-        { id: 'sections', label: 'Sections', icon: Layers, page: '/sections' },
         { id: 'subjects', label: 'Subjects', icon: BookOpen, page: '/subjects' },
         { id: 'routine', label: 'Class Routine', icon: Map, page: '/routine' },
       ]

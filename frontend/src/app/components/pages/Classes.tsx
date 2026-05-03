@@ -7,45 +7,39 @@ import Modal from '../ui/Modal';
 import GenericForm, { FormField } from '../ui/GenericForm';
 import { ToastContainer } from '../ui/Toast';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { SelectItem } from '@/hooks/selectItem';
 
-interface Class {
+interface SchoolClass {
   id: number;
   name: string;
   section: string;
   classTeacher?: string;
   room?: string;
-  schedule?: string;
+  shift?: string;
   students?: number;
   subjects?: number;
-  avgScore?: number;
 }
 
-const formFields: FormField[] = [
-  { name: 'name', label: 'Class Name', type: 'text', placeholder: 'e.g., Grade 10', required: true },
-  { name: 'section', label: 'Section', type: 'text', placeholder: 'e.g., A', required: true },
-  { name: 'classTeacher', label: 'Class Teacher', type: 'text', placeholder: 'Search staff...' },
-  { name: 'room', label: 'Room No', type: 'text', placeholder: 'e.g., Room 201' },
-  { name: 'schedule', label: 'Schedule', type: 'select', options: [{label: 'Morning Shift', value: 'Morning Shift'}, {label: 'Afternoon Shift', value: 'Afternoon Shift'}] },
-  { name: 'subjects', label: 'Number of Subjects', type: 'number', placeholder: '8' },
-];
+let teacherOptions : SelectItem[] = [];
+let shiftOptions : SelectItem[] = [];
 
 export default function Classes() {
   const api = useApi();
   const { toasts, remove, success, error } = useToast();
-  const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
-  const [classes, setClasses] = useState<Class[]>([]);
+  const {confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
+  const [selectedClass, setSelectedClass] = useState<SchoolClass | null>(null);
 
   const fetchClasses = useCallback(async () => {
     try {
       setLoading(true);
       const data = await api.get('/classes');
-      setClasses(data);
+      setClasses(data); 
     } catch (err: any) {
       console.error(err.message);
     } finally {
@@ -57,6 +51,42 @@ export default function Classes() {
     fetchClasses();
   }, [fetchClasses]);
 
+
+  const fetchTeachers = useCallback(async () => {
+    try {
+      const teachers = await api.get('/staff');
+      teacherOptions = teachers.map((t: any) => ({ label: t.name, value: t.name }));
+      console.log('Fetched teachers:', teacherOptions);
+    } catch (err: any) {
+      console.error('Failed to fetch teachers:', err.message);
+    }
+  }, [api]);
+
+  const fetchShifts = useCallback(async () => {
+    try {
+      const shifts = await api.get('/shifts');
+      shiftOptions = shifts.map((s: any) => ({ label: s.name, value: s.name }));
+    } catch (err: any) {
+      console.error('Failed to fetch shifts:', err.message);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    fetchTeachers();
+    fetchShifts();
+  }, [fetchTeachers, fetchShifts]);
+
+
+  const formFields: FormField[] = [
+  { name: 'name', label: 'Class Name', type: 'text', placeholder: 'e.g., Grade 10', required: true },
+  { name: 'section', label: 'Section', type: 'text', placeholder: 'e.g., A', required: true },
+  { name: 'classTeacher', label: 'Class Teacher', type: 'select', options: teacherOptions },
+  { name: 'room', label: 'Room No', type: 'text', placeholder: 'e.g., Room 201' },
+  { name: 'shift', label: 'Shift', type: 'select', options: shiftOptions },
+  { name: 'subjects', label: 'Subjects', type: 'number', placeholder: '8' },
+  { name: 'students', label: 'Students', type: 'number', placeholder: '30' },
+];
+
   const handleSubmit = async (data: any) => {
     try {
       if (modalMode === 'add') {
@@ -64,7 +94,6 @@ export default function Classes() {
       } else {
         await api.put(`/classes/${selectedClass?.id}`, data);
       }
-      await fetchClasses();
       setShowModal(false);
       success(modalMode === 'add' ? 'Class added successfully.' : 'Class updated successfully.');
     } catch (err: any) {
@@ -72,7 +101,7 @@ export default function Classes() {
     }
   };
 
-  const handleDelete = async (cls: Class) => {
+  const handleDelete = async (cls: SchoolClass) => {
     const ok = await confirm(
       `This will permanently remove ${cls.name} - ${cls.section} from the system.`,
       'Delete Class?',
@@ -87,7 +116,13 @@ export default function Classes() {
     }
   };
 
-  const columns: Column<Class>[] = [
+  const handleEditClick = (cls: SchoolClass) => {
+    setSelectedClass(cls);
+    setModalMode('edit');
+    setShowModal(true);
+  }
+
+  const columns: Column<SchoolClass>[] = [
     { 
       header: 'Class Name', 
       accessor: (c) => (
@@ -105,33 +140,22 @@ export default function Classes() {
     { header: 'Teacher', accessor: 'classTeacher' },
     { header: 'Room', accessor: 'room' },
     { 
-      header: 'Schedule', 
+      header: 'Shift', 
       accessor: (c) => (
         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-          c.schedule === 'Morning Shift' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
+          c.shift === 'Morning Shift' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
         }`}>
-          {c.schedule}
+          {c.shift || 'N/A'}
         </span>
       )
     },
     { header: 'Students', accessor: 'students' },
-    { 
-      header: 'Performance', 
-      accessor: (c) => (
-        <div className="flex items-center gap-2">
-          <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-[#2D6CDF]" style={{ width: `${c.avgScore || 0}%` }} />
-          </div>
-          <span className="text-xs font-bold text-gray-700">{c.avgScore || 0}%</span>
-        </div>
-      )
-    }
   ];
 
   const stats = [
     { label: 'Total Classes', value: classes.length },
-    { label: 'Morning Shift', value: classes.filter(c => c.schedule === 'Morning Shift').length, color: 'text-blue-600' },
-    { label: 'Afternoon Shift', value: classes.filter(c => c.schedule === 'Afternoon Shift').length, color: 'text-orange-600' },
+    { label: 'Morning Shift', value: classes.filter(c => c.shift === 'Morning Shift').length, color: 'text-blue-600' },
+    { label: 'Day Shift', value: classes.filter(c => c.shift === 'Day Shift').length, color: 'text-orange-600' },
     { label: 'Avg Class Size', value: classes.length > 0 ? Math.round(classes.reduce((acc, c) => acc + (c.students || 0), 0) / classes.length) : 0 },
   ];
 
@@ -141,11 +165,6 @@ export default function Classes() {
     (c.classTeacher?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
-  function handleEditClick(cls: Class) {
-    setSelectedClass(cls);
-    setModalMode('edit');
-    setShowModal(true);
-  }
 
   return (
     <div className="p-6">
@@ -169,14 +188,14 @@ export default function Classes() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={modalMode === 'add' ? 'Create New Class' : 'Edit Class Details'}
-      >
-        <GenericForm
-          fields={formFields}
-          initialData={selectedClass || { schedule: 'Morning Shift', subjects: 8 }}
-          onSubmit={handleSubmit}
-          onCancel={() => setShowModal(false)}
-          submitLabel={modalMode === 'add' ? 'Create Class' : 'Save Changes'}
-        />
+        >
+          <GenericForm
+            fields={formFields}
+            initialData={selectedClass || { schedule: 'Morning Shift', subjects: 8 }}
+            onSubmit={handleSubmit}
+            onCancel={() => setShowModal(false)}
+            submitLabel={modalMode === 'add' ? 'Create Class' : 'Save Changes'}
+          />
       </Modal>
 
       <Modal
@@ -192,7 +211,7 @@ export default function Classes() {
               </div>
               <div>
                 <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedClass.name} - {selectedClass.section}</h3>
-                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedClass.schedule}</p>
+                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedClass.shift || 'N/A'}</p>
               </div>
             </div>
 
@@ -202,8 +221,7 @@ export default function Classes() {
                 { icon: DoorOpen, label: 'Room Number', value: selectedClass.room || 'N/A' },
                 { icon: Users, label: 'Total Students', value: selectedClass.students || 0 },
                 { icon: BookOpen, label: 'Total Subjects', value: selectedClass.subjects || 0 },
-                { icon: BarChart, label: 'Average Score', value: `${selectedClass.avgScore || 0}%` },
-                { icon: Clock, label: 'Shift', value: selectedClass.schedule },
+                { icon: Clock, label: 'Shift', value: selectedClass.shift || 'N/A' },
               ].map((item, i) => (
                 <div key={i} className="flex gap-4">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">

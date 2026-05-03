@@ -10,7 +10,7 @@ public static class ExamEndpoints
     {
         var examGroup = app.MapGroup("/api/exams")
             .WithTags("Exams")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("StaffOnly");
 
         examGroup.MapGet("", async (IApplicationDbContext db) =>
             await db.Exams.AsNoTracking().OrderByDescending(e => e.StartDate).ToListAsync())
@@ -23,6 +23,7 @@ public static class ExamEndpoints
             await audit.LogAsync("CREATE", "Exam", exam.Id.ToString(), $"Exam {exam.Title} scheduled.");
             return Results.Created($"/api/exams/{exam.Id}", exam);
         })
+        .RequireAuthorization("AdminOnly")
         .WithName("CreateExam");
 
         examGroup.MapGet("/{examId:int}/results", async (int examId, IApplicationDbContext db) =>
@@ -51,6 +52,7 @@ public static class ExamEndpoints
             await audit.LogAsync("CREATE", "ExamResult", result.Id.ToString(), $"Result recorded for student ID {result.StudentId}.");
             return Results.Ok(result);
         })
+        .RequireAuthorization("AdminOnly")
         .WithName("AddExamResult");
 
         return app;

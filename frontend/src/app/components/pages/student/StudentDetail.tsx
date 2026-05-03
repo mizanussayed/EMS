@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Edit, User, Mail, Phone, MapPin, Calendar,
+  ArrowLeft, Edit, User, Phone, Calendar,
   BookOpen, CheckCircle, XCircle, Clock, FileText, CreditCard,
   StickyNote, FolderOpen, IdCard, ChevronRight, AlertCircle,
 } from 'lucide-react';

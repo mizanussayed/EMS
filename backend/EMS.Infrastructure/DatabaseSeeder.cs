@@ -22,9 +22,9 @@ public class DatabaseSeeder : IDatabaseSeeder
         if (!_dbContext.Classes.Any())
         {
             _dbContext.Classes.AddRange(
-                new SchoolClass { Name = "Grade 1", Section = "A", Room = "Room 101", Schedule = "Morning Shift", ClassTeacher = "Mr. John Doe" },
-                new SchoolClass { Name = "Grade 1", Section = "B", Room = "Room 102", Schedule = "Morning Shift", ClassTeacher = "Ms. Jane Smith" },
-                new SchoolClass { Name = "Grade 2", Section = "A", Room = "Room 201", Schedule = "Afternoon Shift", ClassTeacher = "Mr. Robert Brown" }
+                new SchoolClass { Name = "Grade 1", Section = "A", Room = "Room 101", ShiftId = 1, ClassTeacherId = 1, NumberOfSubjects = 8, NumberOfStudents = 30 },
+                new SchoolClass { Name = "Grade 1", Section = "B", Room = "Room 102", ShiftId = 1, ClassTeacherId = 2, NumberOfSubjects = 8, NumberOfStudents = 28 },
+                new SchoolClass { Name = "Grade 2", Section = "A", Room = "Room 201", ShiftId = 2, ClassTeacherId = 3, NumberOfSubjects = 8, NumberOfStudents = 32 }
             );
             _dbContext.SaveChanges();
         }

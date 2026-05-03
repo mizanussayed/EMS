@@ -6,11 +6,11 @@ import { RoleGuard, HasRole } from '../auth/RoleGuard';
 export default function Settings() {
   const { auth } = useAuth();
   const [schoolInfo, setSchoolInfo] = useState({
-    name: 'ABC International School',
-    code: 'ABC-2025',
-    email: 'info@abcschool.edu',
-    phone: '+1 (555) 123-4567',
-    address: '123 Education Street, Knowledge City',
+    name: '',
+    code: '',
+    email: '',
+    phone: '',
+    address: '',
   });
 
   const [notifications, setNotifications] = useState({
@@ -119,17 +119,17 @@ export default function Settings() {
             <h2 className="text-xl font-black mb-8 relative z-10">User Account</h2>
             <div className="flex items-center gap-6 mb-8 relative z-10">
               <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-3xl border border-white/10 flex items-center justify-center text-3xl font-black">
-                {auth?.user?.name.charAt(0)}
+                {(auth?.userName ?? 'U').charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-2xl font-black">{auth?.user?.name}</p>
-                <p className="text-blue-400 font-bold uppercase tracking-widest text-xs">{auth?.user?.role}</p>
+                <p className="text-2xl font-black">{auth?.userName}</p>
+                <p className="text-blue-400 font-bold uppercase tracking-widest text-xs">{auth?.role}</p>
               </div>
             </div>
             <div className="space-y-4 relative z-10">
               <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center">
                 <span className="text-gray-400 text-sm font-medium">Username</span>
-                <span className="font-bold">{auth?.user?.username}</span>
+                <span className="font-bold">{auth?.userName}</span>
               </div>
               <button className="w-full py-4 bg-white text-gray-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all">
                 Change Password

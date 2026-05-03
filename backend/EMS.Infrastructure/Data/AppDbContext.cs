@@ -16,7 +16,6 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<SchoolClass> Classes => Set<SchoolClass>();
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<StudentBadge> StudentBadges => Set<StudentBadge>();
-    public DbSet<Section> Sections => Set<Section>();
     public DbSet<Subject> Subjects => Set<Subject>();
     public DbSet<Staff> Staff => Set<Staff>();
     public DbSet<Exam> Exams => Set<Exam>();

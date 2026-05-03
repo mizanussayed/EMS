@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { ChangeEvent, useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Phone, BookOpen, User, Calendar, MapPin, Upload, Download, FileText, Search, Filter, X } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
@@ -38,7 +38,7 @@ const mapStudentFromApi = (student: ApiStudent): Student => ({
   dateOfBirth: student.dateOfBirth ?? '',
   admissionDate: '',
   status: student.active ? 'Active' : 'Inactive',
-  attendance: '—',
+  attendance: '-',
   admissionNumber: student.admissionNumber ?? '',
   gender: student.gender ?? '',
 });
@@ -64,6 +64,7 @@ export default function Students() {
   const { auth } = useAuth();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('All Classes');
@@ -122,6 +123,177 @@ export default function Students() {
     }
   };
 
+  const escapeCsv = (value: string | number | undefined) => {
+    const text = String(value ?? '');
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+
+  const downloadFile = (fileName: string, content: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = () => {
+    const csv = [
+      ['Admission Number', 'Name', 'Class', 'Section', 'Gender', 'Date of Birth', 'Status'],
+      ...filteredStudents.map((student) => [
+        student.rollNo,
+        student.name,
+        student.className,
+        student.section ?? '',
+        student.gender ?? '',
+        student.dateOfBirth ?? '',
+        student.status,
+      ]),
+    ]
+      .map((row) => row.map(escapeCsv).join(','))
+      .join('\n');
+
+    downloadFile('students.csv', csv, 'text/csv;charset=utf-8');
+    success('Student CSV exported.');
+  };
+
+  const handleExportPdf = () => {
+    const rows = filteredStudents
+      .map(
+        (student) => `
+          <tr>
+            <td>${student.rollNo}</td>
+            <td>${student.name}</td>
+            <td>${student.className}</td>
+            <td>${student.section ?? ''}</td>
+            <td>${student.gender ?? ''}</td>
+            <td>${student.status}</td>
+          </tr>`
+      )
+      .join('');
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+    if (!printWindow) {
+      error('Popup blocked. Please allow popups to export PDF.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Students Export</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+            h1 { margin: 0 0 16px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 12px; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>Student Management</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Admission Number</th>
+                <th>Name</th>
+                <th>Class</th>
+                <th>Section</th>
+                <th>Gender</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows || '<tr><td colspan="6">No students found</td></tr>'}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    success('PDF export opened in print view.');
+  };
+
+  const parseCsvLine = (line: string) => {
+    const values: string[] = [];
+    let current = '';
+    let quoted = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      const next = line[index + 1];
+
+      if (char === '"' && quoted && next === '"') {
+        current += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = !quoted;
+      } else if (char === ',' && !quoted) {
+        values.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    values.push(current.trim());
+    return values;
+  };
+
+  const handleImportCsv = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      if (lines.length < 2) {
+        error('CSV file must include a header row and at least one student.');
+        return;
+      }
+
+      const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const rows = lines.slice(1).map(parseCsvLine);
+      let imported = 0;
+
+      for (const row of rows) {
+        const value = (...names: string[]) => {
+          const index = headers.findIndex((header) => names.includes(header));
+          return index >= 0 ? row[index] : '';
+        };
+        const fullName = value('name', 'studentname');
+        const [firstNameFromFull, ...lastNameParts] = fullName.split(' ').filter(Boolean);
+        const payload = {
+          firstName: value('firstname') || firstNameFromFull,
+          lastName: value('lastname') || lastNameParts.join(' ') || '-',
+          admissionNumber: value('admissionnumber', 'rollno', 'roll', 'id'),
+          className: value('classname', 'class'),
+          section: value('section'),
+          gender: value('gender'),
+          dateOfBirth: value('dateofbirth', 'dob') || null,
+          active: value('status').toLowerCase() !== 'inactive',
+        };
+
+        if (!payload.firstName || !payload.className) {
+          continue;
+        }
+
+        await api.post('/students', payload);
+        imported += 1;
+      }
+
+      await fetchStudents();
+      success(`${imported} student${imported === 1 ? '' : 's'} imported.`);
+    } catch (err: any) {
+      error(err.message || 'Unable to import students.');
+    }
+  };
+
   const columns: Column<Student>[] = [
     { 
       header: 'Student Info', 
@@ -168,10 +340,6 @@ export default function Students() {
           </div>
         </div>
       )
-    },
-    { 
-      header: 'Waiver', 
-      accessor: () => <span className="text-gray-500 text-sm">No waiver</span>
     }
   ];
 
@@ -241,17 +409,21 @@ export default function Students() {
 
   const topActions = (
     <>
-      <button className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all text-sm shadow-md shadow-amber-500/20">
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        onChange={handleImportCsv}
+        className="hidden"
+      />
+      <button onClick={() => importInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all text-sm shadow-md shadow-amber-500/20">
         <Upload className="w-4 h-4" /> Bulk Import
       </button>
-      <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all text-sm shadow-md shadow-emerald-600/20">
+      <button onClick={handleExportCsv} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all text-sm shadow-md shadow-emerald-600/20">
         <Download className="w-4 h-4" /> Export CSV
       </button>
-      <button className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all text-sm shadow-md shadow-rose-600/20">
+      <button onClick={handleExportPdf} className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all text-sm shadow-md shadow-rose-600/20">
         <FileText className="w-4 h-4" /> Export PDF
-      </button>
-      <button className="flex items-center gap-2 px-4 py-2.5 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all text-sm shadow-md shadow-cyan-600/20">
-        Inactive Students
       </button>
     </>
   );
@@ -285,9 +457,9 @@ export default function Students() {
         }}
         onDelete={handleDelete}
         isLoading={loading && students.length === 0}
-        canAdd={auth?.role === 'admin'}
-        canEdit={auth?.role === 'admin'}
-        canDelete={auth?.role === 'admin'}
+        canAdd={auth?.role.toLowerCase() === 'admin'}
+        canEdit={auth?.role.toLowerCase() === 'admin'}
+        canDelete={auth?.role.toLowerCase() === 'admin'}
       />
 
       <Modal

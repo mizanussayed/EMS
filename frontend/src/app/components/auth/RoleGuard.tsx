@@ -17,7 +17,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   
   if (!auth) return null;
 
-  const hasAccess = allowedRoles.includes(auth.role);
+  const hasAccess = allowedRoles.includes(auth.role.toLowerCase());
 
   if (!hasAccess) {
     return (
@@ -41,6 +41,6 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
 // Helper component for conditional rendering within a page
 export const HasRole: React.FC<{ allowedRoles: string[]; children: ReactNode }> = ({ allowedRoles, children }) => {
   const { auth } = useAuth();
-  if (!auth || !allowedRoles.includes(auth.role)) return null;
+  if (!auth || !allowedRoles.includes(auth.role.toLowerCase())) return null;
   return <>{children}</>;
 };

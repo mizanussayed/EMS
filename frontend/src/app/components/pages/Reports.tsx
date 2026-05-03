@@ -1,35 +1,83 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Download, FileText, TrendingUp, Calendar, Search } from 'lucide-react';
 import { RoleGuard } from '../auth/RoleGuard';
 import { useToast } from '../../hooks/useToast';
 import { ToastContainer } from '../ui/Toast';
+import { useApi } from '../../hooks/useApi';
+
+interface DashboardSummary {
+  studentCount: number;
+  classCount: number;
+  attendanceCount: number;
+  presentCount: number;
+  absentCount: number;
+  teacherCount: number;
+  totalFeesCollected: number;
+  totalFeesPending: number;
+}
 
 export default function Reports() {
+  const api = useApi();
   const { toasts, remove, warning, info } = useToast();
   const [selectedReportType, setSelectedReportType] = useState('Student Report');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reportSearch, setReportSearch] = useState('');
+  const [generatedReports, setGeneratedReports] = useState<
+    { name: string; category: string; date: string; type: string }[]
+  >([]);
 
-  const reportCategories = [
-    { title: 'Student Reports', icon: FileText, count: 8, color: 'bg-blue-500' },
-    { title: 'Academic Reports', icon: BarChart3, count: 12, color: 'bg-green-500' },
-    { title: 'Attendance Reports', icon: TrendingUp, count: 6, color: 'bg-orange-500' },
-    { title: 'Financial Reports', icon: FileText, count: 10, color: 'bg-purple-500' },
-  ];
+  useEffect(() => {
+    let mounted = true;
 
-  const recentReports = [
-    { name: 'Student Performance Analysis', category: 'Academic', date: '2025-11-25', type: 'PDF' },
-    { name: 'Monthly Attendance Report', category: 'Attendance', date: '2025-11-24', type: 'Excel' },
-    { name: 'Fee Collection Summary', category: 'Financial', date: '2025-11-23', type: 'PDF' },
-    { name: 'Class-wise Results', category: 'Academic', date: '2025-11-20', type: 'Excel' },
-  ];
+    async function loadSummary() {
+      try {
+        const data = await api.get('/dashboard');
+        if (mounted) setSummary(data);
+      } catch (err) {
+        warning(err instanceof Error ? err.message : 'Unable to load report data.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadSummary();
+
+    return () => {
+      mounted = false;
+    };
+  }, [api, warning]);
+
+  const reportCategories = useMemo(
+    () => [
+      { title: 'Student Reports', icon: FileText, count: summary?.studentCount ?? 0, color: 'bg-blue-500' },
+      { title: 'Academic Reports', icon: BarChart3, count: summary?.classCount ?? 0, color: 'bg-green-500' },
+      { title: 'Attendance Reports', icon: TrendingUp, count: summary?.attendanceCount ?? 0, color: 'bg-orange-500' },
+      { title: 'Financial Reports', icon: FileText, count: Math.round(summary?.totalFeesCollected ?? 0), color: 'bg-purple-500' },
+    ],
+    [summary]
+  );
+
+  const filteredReports = generatedReports.filter((report) =>
+    report.name.toLowerCase().includes(reportSearch.toLowerCase()) ||
+    report.category.toLowerCase().includes(reportSearch.toLowerCase())
+  );
 
   const handleGenerateReport = () => {
     if (!fromDate || !toDate) {
       warning('Please select both from and to dates.');
       return;
     }
-    info(`Generating ${selectedReportType}...`);
+    const generated = {
+      name: selectedReportType,
+      category: selectedReportType.replace(' Report', ''),
+      date: new Date().toISOString().slice(0, 10),
+      type: 'CSV',
+    };
+    setGeneratedReports((current) => [generated, ...current]);
+    info(`${selectedReportType} generated from backend summary data.`);
   };
 
   return (
@@ -50,7 +98,9 @@ export default function Reports() {
                 <Icon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-gray-900 font-black text-lg mb-1">{category.title}</h3>
-              <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">{category.count} Templates</p>
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">
+                {loading ? 'Loading' : category.count} Records
+              </p>
             </div>
           );
         })}
@@ -116,10 +166,10 @@ export default function Reports() {
           <h2 className="text-xl font-black mb-8 relative z-10">Historical Pulse</h2>
           <div className="space-y-6 relative z-10">
             {[
-              { label: 'Pass Rate', value: '98.5%', color: 'text-green-400' },
-              { label: 'Retention', value: '94.2%', color: 'text-blue-400' },
-              { label: 'Fee Collection', value: '87.8%', color: 'text-orange-400' },
-              { label: 'Growth', value: '+12.4%', color: 'text-purple-400' },
+              { label: 'Present Today', value: String(summary?.presentCount ?? 0), color: 'text-green-400' },
+              { label: 'Absent Today', value: String(summary?.absentCount ?? 0), color: 'text-blue-400' },
+              { label: 'Fee Collected', value: String(Math.round(summary?.totalFeesCollected ?? 0)), color: 'text-orange-400' },
+              { label: 'Fee Pending', value: String(Math.round(summary?.totalFeesPending ?? 0)), color: 'text-purple-400' },
             ].map((stat, i) => (
               <div key={i} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between">
                 <span className="text-gray-400 text-xs font-black uppercase tracking-widest">{stat.label}</span>
@@ -137,6 +187,8 @@ export default function Reports() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input 
               type="text" 
+              value={reportSearch}
+              onChange={(event) => setReportSearch(event.target.value)}
               placeholder="Filter reports..." 
               className="pl-12 pr-6 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 transition-all text-sm"
             />
@@ -153,7 +205,7 @@ export default function Reports() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {recentReports.map((report, index) => (
+              {filteredReports.map((report, index) => (
                 <tr key={index} className="hover:bg-blue-50/30 transition-colors group">
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-3">
@@ -177,6 +229,13 @@ export default function Reports() {
                   </td>
                 </tr>
               ))}
+              {filteredReports.length === 0 && (
+                <tr>
+                  <td className="px-8 py-10 text-center text-gray-500 font-medium" colSpan={4}>
+                    No generated reports yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -12,7 +12,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     return <Navigate to="/" replace />;
   }
 
-  if (!allowedRoles.includes(auth.role)) {
+  if (!allowedRoles.includes(auth.role.toLowerCase())) {
     return <Navigate to="/" replace />;
   }
 

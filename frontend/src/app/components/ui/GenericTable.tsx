@@ -64,9 +64,9 @@ function GenericTable<T extends { id: string | number }>({
           {canAdd && onAdd && (
             <button
               onClick={onAdd}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               {addLabel}
             </button>
           )}
@@ -105,7 +105,7 @@ function GenericTable<T extends { id: string | number }>({
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left table-border-event">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 {columns.map((col, idx) => (
@@ -143,7 +143,7 @@ function GenericTable<T extends { id: string | number }>({
                 </tr>
               ) : (
                 data.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/30 transition-colors group">
+                  <tr key={item.id} className="hover:bg-gray-100 transition-colors group ">
                     {columns.map((col, idx) => (
                       <td key={idx} className={`px-6 py-5 text-[15px] ${idx === 0 ? 'font-bold text-gray-900' : 'text-gray-600 font-medium'} ${col.className || ''}`}>
                         {typeof col.accessor === 'function' 

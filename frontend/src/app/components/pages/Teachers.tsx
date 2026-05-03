@@ -143,7 +143,7 @@ export default function Teachers() {
           <button onClick={() => handleViewClick(teacher)} className="p-2 hover:bg-blue-50 rounded-lg transition-colors text-blue-600" title="View Details">
             <BookOpen className="w-5 h-5" />
           </button>
-          {auth?.role === 'admin' && (
+          {auth?.role.toLowerCase() === 'admin' && (
             <>
               <button onClick={() => handleEditClick(teacher)} className="p-2 hover:bg-gray-50 rounded-lg transition-colors text-gray-600" title="Edit">
                 <Edit className="w-5 h-5" />
@@ -186,38 +186,37 @@ export default function Teachers() {
   return (
     <div className="p-6">
       <GridList
-        title="Staff Management"
+        title="Teacher Management"
         description="Manage teaching staff and their information"
         stats={stats}
         data={filteredTeachers}
         renderCard={renderTeacherCard}
         onAdd={() => { setModalMode('add'); setSelectedTeacher(null); setShowModal(true); }}
-        addLabel="Add Staff Member"
+        addLabel="Add Teacher"
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search by name, subject, or email..."
         isLoading={loading && teachers.length === 0}
-        canAdd={auth?.role === 'admin'}
       />
 
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={modalMode === 'add' ? 'Add New Staff Member' : 'Edit Staff Profile'}
+        title={modalMode === 'add' ? 'Add New Teacher' : 'Edit Teacher Profile'}
       >
         <GenericForm
           fields={formFields}
           initialData={selectedTeacher || {}}
           onSubmit={handleSubmit}
           onCancel={() => setShowModal(false)}
-          submitLabel={modalMode === 'add' ? 'Add Staff Member' : 'Save Changes'}
+          submitLabel={modalMode === 'add' ? 'Add Teacher' : 'Save Changes'}
         />
       </Modal>
 
       <Modal
         isOpen={showViewModal}
         onClose={() => setShowViewModal(false)}
-        title="Staff Member Details"
+        title="Teacher Details"
       >
         {selectedTeacher && (
           <div className="space-y-8">

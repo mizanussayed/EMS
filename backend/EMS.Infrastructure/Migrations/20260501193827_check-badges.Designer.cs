@@ -3,6 +3,7 @@ using System;
 using EMS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EMS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260501193827_check-badges")]
+    partial class checkbadges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
@@ -347,32 +350,45 @@ namespace EMS.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("ClassTeacherId")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("ClassTeacher")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("NumberOfStudents")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("NumberOfSubjects")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Room")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Schedule")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Section")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("ShiftId")
-                        .HasColumnType("INTEGER");
-
                     b.HasKey("Id");
 
                     b.ToTable("Classes");
+                });
+
+            modelBuilder.Entity("EMS.Domain.Section", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ClassName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Sections");
                 });
 
             modelBuilder.Entity("EMS.Domain.Shift", b =>

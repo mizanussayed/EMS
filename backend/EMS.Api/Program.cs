@@ -4,11 +4,9 @@ using EMS.Application.Options;
 using EMS.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Scalar.AspNetCore;
-using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 using System.Text;
-using System.Collections.Generic;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,9 +47,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // ----------------------
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("StaffOnly", policy =>
-        policy.RequireRole("admin", "teacher", "Accountant"))
+        policy.RequireRole("ADMIN", "TEACHER", "ACCOUNTANT"))
     .AddPolicy("AdminOnly", policy =>
-        policy.RequireRole("admin"));
+        policy.RequireRole("ADMIN"))
+    .AddPolicy("StudentOnly", policy =>
+        policy.RequireRole("STUDENT"));
 
 
 builder.Services.AddCors(options =>
@@ -61,7 +61,7 @@ builder.Services.AddCors(options =>
         policy
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowAnyOrigin(); // ⚠️ change this in production
+            .AllowAnyOrigin();
     });
 });
 
@@ -129,7 +129,6 @@ app.MapStudentEndpoints();
 app.MapClassEndpoints();
 app.MapShiftEndpoints();
 app.MapBadgeEndpoints();
-app.MapSectionEndpoints();
 app.MapSubjectEndpoints();
 app.MapStaffEndpoints();
 app.MapExamEndpoints();

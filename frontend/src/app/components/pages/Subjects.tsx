@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, GraduationCap, Award, Users } from 'lucide-react';
+import { BookOpen, GraduationCap, Award, Users, File, Upload } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { useToast, useConfirm } from '../../hooks/useToast';
@@ -191,19 +191,23 @@ export default function Subjects() {
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center gap-3">
+        <label htmlFor="csv-upload" className="px-4 py-2 bg-teal-700 text-white rounded-md cursor-pointer">Select File
+          <File className="inline-block ml-2 h-4 w-4" />
+        </label>
         <input
+          id="csv-upload"
           type="file"
           accept=".csv,text/csv"
           onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-          className=""
+          className="hidden"
         />
-        <button onClick={importCSV} className="px-4 py-2 bg-green-500 text-white rounded-md">Import CSV</button>
+        <button onClick={importCSV} className="px-4 py-2 bg-green-500 text-white rounded-md"><Upload className="inline-block mr-2 h-4 w-4" /> Import CSV</button>
         <button onClick={() => {
           const sample = 'Subject Name,Code,Credits,Type,Teacher\nMathematics,MATH-10,3,Core,John Doe\nEnglish,ENG-10,3,Core,Jane Smith';
           const blob = new Blob([sample], { type: 'text/csv' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a'); a.href = url; a.download = 'subjects-sample.csv'; a.click(); URL.revokeObjectURL(url);
-        }} className="px-4 py-2 bg-gray-600 text-white rounded-md">Sample CSV</button>
+        }} className="px-4 py-2 bg-gray-600 text-white rounded-md"><File className="inline-block mr-2 h-4 w-4" /> Sample CSV</button>
       </div>
       <GenericTable
         title="Subject Management"
@@ -219,9 +223,9 @@ export default function Subjects() {
         onEdit={handleEditClick}
         onDelete={handleDelete}
         isLoading={loading && subjects.length === 0}
-        canAdd={auth?.role === 'admin'}
-        canEdit={auth?.role === 'admin'}
-        canDelete={auth?.role === 'admin'}
+        canAdd={auth?.role.toLowerCase() === 'admin'}
+        canEdit={auth?.role.toLowerCase() === 'admin'}
+        canDelete={auth?.role.toLowerCase() === 'admin'}
       />
 
       <Modal
@@ -278,7 +282,7 @@ export default function Subjects() {
             
             <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
               <button onClick={() => setShowViewModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all">Close</button>
-              {auth?.role === 'admin' && (
+              {auth?.role.toLowerCase() === 'admin' && (
                 <button 
                   onClick={() => { setShowViewModal(false); handleEditClick(selectedSubject); }}
                   className="px-8 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"

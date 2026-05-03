@@ -1,5 +1,7 @@
 namespace EMS.Domain;
-public class Shift {
+
+public class Shift
+{
     public int Id { get; set; }
     public string Name { get; set; } = default!;
     public string StartTime { get; set; } = default!;
