@@ -26,6 +26,27 @@ public static class EventEndpoints
         .WithName("CreateEvent")
         .RequireAuthorization("AdminOnly");
 
+        eventGroup.MapPut("/{id:int}", async (int id, Event update, IApplicationDbContext db, IAuditService audit) =>
+        {
+            var existing = await db.Events.FindAsync(id);
+            if (existing is null)
+                return Results.NotFound();
+
+            existing.Title = update.Title;
+            existing.Description = update.Description;
+            existing.StartDate = update.StartDate;
+            existing.EndDate = update.EndDate;
+            existing.Location = update.Location;
+            existing.OrganizedBy = update.OrganizedBy;
+            existing.IsActive = update.IsActive;
+
+            await db.SaveChangesAsync();
+            await audit.LogAsync("UPDATE", "Event", existing.Id.ToString(), $"Event {existing.Title} updated.");
+            return Results.NoContent();
+        })
+        .WithName("UpdateEvent")
+        .RequireAuthorization("AdminOnly");
+
         eventGroup.MapDelete("/{id:int}", async (int id, IApplicationDbContext db, IAuditService audit) =>
         {
             var existing = await db.Events.FindAsync(id);

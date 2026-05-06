@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, Calendar, Clock, CheckCircle } from 'lucide-react';
+import { FileText, Calendar, Clock, CheckCircle, Download } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { useToast, useConfirm } from '../../hooks/useToast';
@@ -8,6 +8,8 @@ import Modal from '../ui/Modal';
 import GenericForm, { FormField } from '../ui/GenericForm';
 import { ToastContainer } from '../ui/Toast';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { formatDateForInput, formatDateForAPI, formatDateForDisplay } from '../../utils/dateUtils';
+import { downloadClassWiseResults, downloadStudentWiseResults, downloadTranscriptCard, downloadExamSummary } from '../../utils/examReports';
 
 interface Exam {
   id: number;
@@ -49,6 +51,8 @@ export default function Exams() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [examResults, setExamResults] = useState<any[]>([]);
+  const [loadingResults, setLoadingResults] = useState(false);
 
   const fetchExams = useCallback(async () => {
     try {
@@ -66,12 +70,30 @@ export default function Exams() {
     fetchExams();
   }, [fetchExams]);
 
+  const fetchExamResults = useCallback(async (examId: number) => {
+    setLoadingResults(true);
+    try {
+      const data = await api.get(`/exams/${examId}/results`);
+      setExamResults(data || []);
+    } catch (err: any) {
+      console.error(err.message);
+      setExamResults([]);
+    } finally {
+      setLoadingResults(false);
+    }
+  }, [api]);
+
   const handleSubmit = async (data: any) => {
     try {
+      const payload = {
+        ...data,
+        startDate: formatDateForAPI(data.startDate),
+        endDate: formatDateForAPI(data.endDate)
+      };
       if (modalMode === 'add') {
-        await api.post('/exams', data);
+        await api.post('/exams', payload);
       } else {
-        await api.put(`/exams/${selectedExam?.id}`, data);
+        await api.put(`/exams/${selectedExam?.id}`, payload);
       }
       await fetchExams();
       setShowModal(false);
@@ -125,7 +147,7 @@ export default function Exams() {
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="w-4 h-4 text-gray-400" />
           <div>
-            <div className="text-gray-900 font-bold">{new Date(e.startDate).toLocaleDateString()}</div>
+            <div className="text-gray-900 font-bold">{formatDateForDisplay(e.startDate)}</div>
             <div className="text-xs text-gray-400">to {new Date(e.endDate).toLocaleDateString()}</div>
           </div>
         </div>
@@ -158,7 +180,12 @@ export default function Exams() {
   );
 
   function handleEditClick(exam: Exam) {
-    setSelectedExam(exam);
+    const formattedExam = {
+      ...exam,
+      startDate: formatDateForInput(exam.startDate),
+      endDate: formatDateForInput(exam.endDate)
+    };
+    setSelectedExam(formattedExam);
     setModalMode('edit');
     setShowModal(true);
   }
@@ -175,7 +202,7 @@ export default function Exams() {
         onSearchChange={setSearchTerm}
         onAdd={() => { setModalMode('add'); setSelectedExam(null); setShowModal(true); }}
         addLabel="Schedule Exam"
-        onView={(e) => { setSelectedExam(e); setShowViewModal(true); }}
+        onView={(e) => { setSelectedExam(e); fetchExamResults(e.id); setShowViewModal(true); }}
         onEdit={handleEditClick}
         onDelete={handleDelete}
         isLoading={loading && exams.length === 0}
@@ -221,8 +248,9 @@ export default function Exams() {
                 { icon: Clock, label: 'Exam Type', value: selectedExam.type },
                 { icon: Calendar, label: 'Class / Section', value: selectedExam.className || 'General' },
                 { icon: CheckCircle, label: 'Current Status', value: selectedExam.status },
-                { icon: Calendar, label: 'Start Date', value: new Date(selectedExam.startDate).toLocaleDateString() },
-                { icon: Calendar, label: 'End Date', value: new Date(selectedExam.endDate).toLocaleDateString() },
+                { icon: Calendar, label: 'Start Date', value: formatDateForDisplay(selectedExam.startDate) },
+                { icon: Calendar, label: 'End Date', value: formatDateForDisplay(selectedExam.endDate) },
+                { icon: FileText, label: 'Total Results', value: examResults.length.toString() },
               ].map((item, i) => (
                 <div key={i} className="flex gap-4">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
@@ -236,8 +264,50 @@ export default function Exams() {
               ))}
             </div>
             
+            {loadingResults && (
+              <div className="p-6 bg-blue-50 rounded-xl border border-blue-100 text-center">
+                <p className="text-blue-700 font-bold">Loading exam results...</p>
+              </div>
+            )}
+            
             <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
               <button onClick={() => setShowViewModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all">Close</button>
+              {examResults.length > 0 && (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => downloadClassWiseResults(selectedExam!, examResults)}
+                    className="px-4 py-2.5 bg-blue-50 text-blue-700 rounded-xl font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+                    title="Download results grouped by class"
+                  >
+                    <Download className="w-4 h-4" />
+                    Class Results
+                  </button>
+                  <button 
+                    onClick={() => downloadStudentWiseResults(selectedExam!, examResults)}
+                    className="px-4 py-2.5 bg-green-50 text-green-700 rounded-xl font-bold hover:bg-green-100 transition-all flex items-center gap-2"
+                    title="Download results grouped by student"
+                  >
+                    <Download className="w-4 h-4" />
+                    Student Results
+                  </button>
+                  <button 
+                    onClick={() => downloadTranscriptCard(selectedExam!, examResults)}
+                    className="px-4 py-2.5 bg-purple-50 text-purple-700 rounded-xl font-bold hover:bg-purple-100 transition-all flex items-center gap-2"
+                    title="Download transcript cards"
+                  >
+                    <Download className="w-4 h-4" />
+                    Transcript
+                  </button>
+                  <button 
+                    onClick={() => downloadExamSummary(selectedExam!, examResults)}
+                    className="px-4 py-2.5 bg-orange-50 text-orange-700 rounded-xl font-bold hover:bg-orange-100 transition-all flex items-center gap-2"
+                    title="Download summary report"
+                  >
+                    <Download className="w-4 h-4" />
+                    Summary
+                  </button>
+                </div>
+              )}
               {auth?.role === 'admin' && (
                 <button 
                   onClick={() => { setShowViewModal(false); handleEditClick(selectedExam); }}

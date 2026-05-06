@@ -26,6 +26,26 @@ public static class ExamEndpoints
         .RequireAuthorization("AdminOnly")
         .WithName("CreateExam");
 
+        examGroup.MapPut("/{id:int}", async (int id, Exam update, IApplicationDbContext db, IAuditService audit) =>
+        {
+            var existing = await db.Exams.FindAsync(id);
+            if (existing is null)
+                return Results.NotFound();
+
+            existing.Title = update.Title;
+            existing.Type = update.Type;
+            existing.StartDate = update.StartDate;
+            existing.EndDate = update.EndDate;
+            existing.Status = update.Status;
+            existing.ClassName = update.ClassName;
+
+            await db.SaveChangesAsync();
+            await audit.LogAsync("UPDATE", "Exam", existing.Id.ToString(), $"Exam {existing.Title} updated.");
+            return Results.NoContent();
+        })
+        .RequireAuthorization("AdminOnly")
+        .WithName("UpdateExam");
+
         examGroup.MapGet("/{examId:int}/results", async (int examId, IApplicationDbContext db) =>
             await db.ExamResults
                 .Include(r => r.Student)
@@ -33,8 +53,10 @@ public static class ExamEndpoints
                 .Select(r => new
                 {
                     r.Id,
+                    r.ExamId,
                     r.StudentId,
                     StudentName = r.Student.FirstName + " " + r.Student.LastName,
+                    ClassName = r.Student.ClassName,
                     r.SubjectName,
                     r.MarksObtained,
                     r.TotalMarks,
@@ -54,6 +76,20 @@ public static class ExamEndpoints
         })
         .RequireAuthorization("AdminOnly")
         .WithName("AddExamResult");
+
+        examGroup.MapDelete("/{id:int}", async (int id, IApplicationDbContext db, IAuditService audit) =>
+        {
+            var existing = await db.Exams.FindAsync(id);
+            if (existing is null)
+                return Results.NotFound();
+
+            db.Exams.Remove(existing);
+            await db.SaveChangesAsync();
+            await audit.LogAsync("DELETE", "Exam", existing.Id.ToString(), $"Exam {existing.Title} deleted.");
+            return Results.NoContent();
+        })
+        .RequireAuthorization("AdminOnly")
+        .WithName("DeleteExam");
 
         return app;
     }

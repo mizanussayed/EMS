@@ -8,6 +8,7 @@ import Modal from '../ui/Modal';
 import GenericForm, { FormField } from '../ui/GenericForm';
 import { ToastContainer } from '../ui/Toast';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { formatDateForInput, formatDateForAPI, formatDateForDisplay } from '../../utils/dateUtils';
 
 interface Teacher {
   id: number;
@@ -70,7 +71,7 @@ export default function Teachers() {
         ...data,
         role: 'Teacher',
         status: data.status || 'Active',
-        dateOfJoining: data.dateOfJoining || null
+        dateOfJoining: formatDateForAPI(data.dateOfJoining)
       };
 
       if (modalMode === 'add') {
@@ -104,7 +105,11 @@ export default function Teachers() {
   };
 
   const handleEditClick = (teacher: Teacher) => {
-    setSelectedTeacher(teacher);
+    const formattedTeacher = {
+      ...teacher,
+      dateOfJoining: formatDateForInput(teacher.dateOfJoining)
+    };
+    setSelectedTeacher(formattedTeacher);
     setModalMode('edit');
     setShowModal(true);
   };
@@ -238,7 +243,7 @@ export default function Teachers() {
                 { label: 'Experience', value: selectedTeacher.experience || 'N/A' },
                 { label: 'Email Address', value: selectedTeacher.email },
                 { label: 'Phone Number', value: selectedTeacher.phone || 'N/A' },
-                { label: 'Date Joined', value: selectedTeacher.dateOfJoining ? new Date(selectedTeacher.dateOfJoining).toLocaleDateString() : 'N/A' },
+                { label: 'Date Joined', value: formatDateForDisplay(selectedTeacher.dateOfJoining) },
                 { label: 'Assigned Classes', value: selectedTeacher.classes || 'None' },
               ].map((item, i) => (
                 <div key={i}>

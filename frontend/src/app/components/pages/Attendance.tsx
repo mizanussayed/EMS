@@ -172,27 +172,13 @@ export default function Attendance() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-gray-900 font-bold text-3xl mb-1">Attendance Tracking</h1>
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Monitor daily student presence</p>
+          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">View attendance data (auto-synced from device)</p>
         </div>
           <div className="flex gap-3">
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-bold shadow-sm">
               <Download className="w-5 h-5 text-[#2D6CDF]" />
               Export
             </button>
-            {(auth?.role === 'admin' || auth?.role === 'teacher') && (
-              <button 
-                onClick={saveAttendance}
-                disabled={!hasChanges || loading}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95 ${
-                  hasChanges 
-                    ? 'bg-[#2D6CDF] text-white shadow-[#2D6CDF]/20 hover:bg-[#1a4ba8]' 
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                }`}
-              >
-                <Save className="w-5 h-5" />
-                Save Changes
-              </button>
-            )}
           </div>
       </div>
 
@@ -238,12 +224,12 @@ export default function Attendance() {
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 transition-all font-medium"
                 />
               </div>
-              <div className="pt-4 border-t border-gray-100">
-                <p className="text-gray-500 text-xs font-bold uppercase mb-3">Bulk Actions</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => markAll('Present')} className="py-2.5 bg-green-50 text-green-700 rounded-xl text-sm font-bold hover:bg-green-100 transition-colors">All Present</button>
-                  <button onClick={() => markAll('Absent')} className="py-2.5 bg-red-50 text-red-700 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors">All Absent</button>
-                </div>
+              <div className="pt-4 border-t border-gray-100 bg-blue-50 rounded-xl p-4">
+                <p className="text-blue-700 text-xs font-bold uppercase mb-2 flex items-center gap-2">
+                  <Info className="w-4 h-4" />
+                  Read-Only Mode
+                </p>
+                <p className="text-blue-600 text-xs leading-relaxed">Attendance data is automatically synced from your attendance device. Manual edits are not permitted.</p>
               </div>
             </div>
           </div>
@@ -294,18 +280,18 @@ export default function Attendance() {
                             { id: 'Late', color: 'orange', icon: Clock },
                             { id: 'Excused', color: 'blue', icon: Info },
                           ].map((btn) => (
-                            <button
+                            <div
                               key={btn.id}
-                              onClick={() => updateAttendance(record.studentId, btn.id as any)}
-                              className={`p-2 rounded-lg transition-all flex flex-col items-center gap-0.5 min-w-[60px] ${
+                              className={`p-2 rounded-lg transition-all flex flex-col items-center gap-0.5 min-w-[60px] opacity-40 cursor-not-allowed ${
                                 record.status === btn.id 
-                                  ? `bg-${btn.color}-600 text-white shadow-lg shadow-${btn.color}-600/20 scale-105`
-                                  : `bg-gray-50 text-gray-400 hover:bg-${btn.color}-50 hover:text-${btn.color}-600`
+                                  ? `bg-${btn.color}-600 text-white opacity-100`
+                                  : `bg-gray-50 text-gray-400`
                               }`}
+                              title="Read-only mode - data from device"
                             >
                               <btn.icon className="w-4 h-4" />
                               <span className="text-[10px] font-bold uppercase">{btn.id}</span>
-                            </button>
+                            </div>
                           ))}
                         </div>
                       </td>

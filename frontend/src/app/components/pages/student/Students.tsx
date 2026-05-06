@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal';
 import GenericForm, { FormField } from '@/components/ui/GenericForm';
 import { ToastContainer } from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { formatDateForInput, formatDateForAPI, formatDateForDisplay } from '@/utils/dateUtils';
 import type { Student } from './Studnet';
 
 
@@ -95,10 +96,14 @@ export default function Students() {
 
   const handleSubmit = async (formData: any) => {
     try {
+      const payload = {
+        ...formData,
+        dateOfBirth: formatDateForAPI(formData.dateOfBirth)
+      };
       if (modalMode === 'add') {
-        await api.post('/students', formData);
+        await api.post('/students', payload);
       } else {
-        await api.put(`/students/${selectedStudent?.id}`, formData);
+        await api.put(`/students/${selectedStudent?.id}`, payload);
       }
       await fetchStudents();
       setShowModal(false);
@@ -472,7 +477,8 @@ export default function Students() {
           initialData={selectedStudent ? {
             firstName: selectedStudent.name.split(' ')[0],
             lastName: selectedStudent.name.split(' ').slice(1).join(' '),
-            ...selectedStudent
+            ...selectedStudent,
+            dateOfBirth: formatDateForInput(selectedStudent.dateOfBirth)
           } : {}}
           onSubmit={handleSubmit}
           onCancel={() => setShowModal(false)}
@@ -501,7 +507,7 @@ export default function Students() {
               {[
                 { icon: User, label: 'Admission No', value: selectedStudent.rollNo },
                 { icon: BookOpen, label: 'Current Class', value: selectedStudent.className },
-                { icon: Calendar, label: 'Date of Birth', value: selectedStudent.dateOfBirth || 'N/A' },
+                { icon: Calendar, label: 'Date of Birth', value: formatDateForDisplay(selectedStudent.dateOfBirth) },
                 { icon: User, label: 'Gender', value: selectedStudent.gender || 'N/A' },
                 { icon: Mail, label: 'Email Address', value: selectedStudent.email || 'N/A' },
                 { icon: Phone, label: 'Phone Number', value: selectedStudent.phone || 'N/A' },

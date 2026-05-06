@@ -8,7 +8,9 @@ public static class DashboardEndpoints
 {
     public static IEndpointRouteBuilder MapDashboardEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/dashboard").WithTags("Dashboard");
+        var group = app.MapGroup("/api/dashboard")
+            .WithTags("Dashboard")
+            .RequireAuthorization("StaffOnly");
 
         group.MapGet("", async (IApplicationDbContext db) =>
         {

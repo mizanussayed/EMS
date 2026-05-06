@@ -24,17 +24,7 @@ public static class StudentEndpoints
             .WithName("GetStudentById")
             .AllowAnonymous();
 
-        studentGroup.MapPost("", async (Student student, IApplicationDbContext db, IAuditService audit) =>
-        {
-            db.Students.Add(student);
-            await db.SaveChangesAsync();
-            await audit.LogAsync("CREATE", "Student", student.Id.ToString(),
-                $"Student {student.FirstName} {student.LastName} created.");
-            return Results.Created($"/api/students/{student.Id}", student);
-        })
-        .WithName("CreateStudent");
-
-        studentGroup.MapPost("/students", [Authorize("AdminOnly")] async (IApplicationDbContext db, [FromBody] StudentRequestModel request) =>
+        studentGroup.MapPost("", [Authorize("AdminOnly")] async (IApplicationDbContext db, [FromBody] StudentRequestModel request, IAuditService audit) =>
         {
             var student = new Student
             {
@@ -49,9 +39,12 @@ public static class StudentEndpoints
 
             db.Students.Add(student);
             await db.SaveChangesAsync();
+            await audit.LogAsync("CREATE", "Student", student.Id.ToString(),
+                $"Student {student.FirstName} {student.LastName} created.");
 
-            return Results.Created($"/students/{student.Id}", student);
-        });
+            return Results.Created($"/api/students/{student.Id}", student);
+        })
+        .WithName("CreateStudent");
 
         studentGroup.MapPut("/{id:int}", async (int id, Student update, IApplicationDbContext db, IAuditService audit) =>
         {

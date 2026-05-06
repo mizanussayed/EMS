@@ -10,7 +10,7 @@ public static class StaffEndpoints
     {
         var staffGroup = app.MapGroup("/api/staff")
             .WithTags("Staff")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("StaffOnly");
 
         staffGroup.MapGet("", async (IApplicationDbContext db) =>
             await db.Staff.AsNoTracking().OrderBy(s => s.Name).ToListAsync())
@@ -28,6 +28,7 @@ public static class StaffEndpoints
                 $"Staff member {member.Name} ({member.Role}) created.");
             return Results.Created($"/api/staff/{member.Id}", member);
         })
+        .RequireAuthorization("AdminOnly")
         .WithName("CreateStaff");
 
         staffGroup.MapPut("/{id:int}", async (int id, Staff update, IApplicationDbContext db, IAuditService audit) =>
@@ -55,6 +56,7 @@ public static class StaffEndpoints
                 $"Staff member {existing.Name} updated.");
             return Results.NoContent();
         })
+        .RequireAuthorization("AdminOnly")
         .WithName("UpdateStaff");
 
         staffGroup.MapDelete("/{id:int}", async (int id, IApplicationDbContext db, IAuditService audit) =>
@@ -71,6 +73,7 @@ public static class StaffEndpoints
                 $"Staff member {existing.Name} deleted.");
             return Results.NoContent();
         })
+        .RequireAuthorization("AdminOnly")
         .WithName("DeleteStaff");
 
         return app;

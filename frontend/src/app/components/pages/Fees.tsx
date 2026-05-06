@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, User } from 'lucide-react';
+import { DollarSign, User, Settings } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import GenericTable, { Column } from '../ui/GenericTable';
 import Modal from '../ui/Modal';
 import { RoleGuard } from '../auth/RoleGuard';
+import FeeConfiguration from './FeeConfiguration';
 
 interface FeeRecord {
   id: number;
@@ -27,6 +28,7 @@ export default function Fees() {
   const [selectedRecord, setSelectedRecord] = useState<FeeRecord | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [activeTab, setActiveTab] = useState<'records' | 'config'>('records');
 
   const fetchFees = useCallback(async () => {
     try {
@@ -115,22 +117,56 @@ export default function Fees() {
   return (
     <RoleGuard allowedRoles={['admin']}>
       <div className="p-6">
-      <GenericTable
-        title="Fee Management"
-        description="Financial Records & Collection"
-        stats={stats}
-        data={filteredRecords}
-        columns={columns}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        onView={(r) => {
-          setSelectedRecord(r);
-          setPaymentAmount(String(r.amount - r.paidAmount));
-          setShowPaymentModal(true);
-        }}
-        addLabel="Download Report"
-        isLoading={loading && records.length === 0}
-      />
+      <div className="mb-6 border-b border-gray-100">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('records')}
+            className={`px-6 py-4 font-bold uppercase text-xs tracking-widest border-b-2 transition-all ${
+              activeTab === 'records'
+                ? 'border-[#2D6CDF] text-[#2D6CDF]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Fee Records
+          </button>
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`px-6 py-4 font-bold uppercase text-xs tracking-widest border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'config'
+                ? 'border-[#2D6CDF] text-[#2D6CDF]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            Configuration
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'records' && (
+        <>
+          <GenericTable
+            title="Fee Management"
+            description="Financial Records & Collection"
+            stats={stats}
+            data={filteredRecords}
+            columns={columns}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onView={(r) => {
+              setSelectedRecord(r);
+              setPaymentAmount(String(r.amount - r.paidAmount));
+              setShowPaymentModal(true);
+            }}
+            addLabel="Download Report"
+            isLoading={loading && records.length === 0}
+          />
+        </>
+      )}
+
+      {activeTab === 'config' && (
+        <FeeConfiguration onConfigUpdate={fetchFees} />
+      )}
 
       <Modal
         isOpen={showPaymentModal}
