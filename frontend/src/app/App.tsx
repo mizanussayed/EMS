@@ -1,23 +1,13 @@
-import { BrowserRouter as Router } from 'react-router-dom';
-import AppRoutes from './AppRoutes';
-import { AuthProvider } from './context/AuthContext';
-
-declare global {
-  interface ImportMetaEnv {
-    readonly VITE_API_URL?: string;
-  }
-
-  interface ImportMeta {
-    readonly env: ImportMetaEnv;
-  }
-}
+import AppProviders from './providers/AppProviders';
+import AppRouter from './router/AppRouter';
+import AppErrorBoundary from './error-boundary/AppErrorBoundary';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
+    <AppErrorBoundary>
+      <AppProviders>
+        <AppRouter />
+      </AppProviders>
+    </AppErrorBoundary>
   );
 }

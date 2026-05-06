@@ -1,0 +1,13 @@
+const defaultApiUrl = 'http://localhost:5000/api';
+
+function validateApiUrl(value: string): string {
+  try {
+    return new URL(value).toString().replace(/\/$/, '');
+  } catch {
+    throw new Error(`Invalid VITE_API_URL value: ${value}`);
+  }
+}
+
+export const env = {
+  apiUrl: validateApiUrl(import.meta.env.VITE_API_URL?.trim() || defaultApiUrl),
+};

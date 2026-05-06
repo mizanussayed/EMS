@@ -1,0 +1,243 @@
+import { useState, useEffect, useCallback } from 'react';
+import { BookOpen, GraduationCap, Award, Users, File, Upload } from 'lucide-react';
+import { useApi } from '@/hooks/useApi';
+import { useAuth } from '@/context/AuthContext';
+import { useToast, useConfirm } from '@/hooks/useToast';
+import GenericTable, { type Column } from '@/components/ui/GenericTable';
+import Modal from '@/components/ui/Modal';
+import GenericForm, { type FormField } from '@/components/ui/GenericForm';
+import { ToastContainer } from '@/components/ui/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+
+interface Subject {
+  id: number;
+  name: string;
+  code: string;
+  teacher?: string;
+  classes?: string;
+  students?: number;
+  credits: number;
+  type: string;
+}
+
+const formFields: FormField[] = [
+  { name: 'name', label: 'Subject Name', type: 'text', placeholder: 'e.g., Mathematics', required: true },
+  { name: 'code', label: 'Subject Code', type: 'text', placeholder: 'e.g., MATH-10', required: true },
+  { name: 'teacher', label: 'Assigned Teacher', type: 'text', placeholder: 'Search staff...' },
+  { name: 'classes', label: 'Classes', type: 'text', placeholder: 'e.g., Grade 10A, 10B' },
+  { name: 'credits', label: 'Credits', type: 'number', placeholder: '3' },
+  { name: 'type', label: 'Type', type: 'select', options: [{ label: 'Core', value: 'Core' }, { label: 'Elective', value: 'Elective' }] },
+];
+
+export default function SubjectsView() {
+  const api = useApi();
+  const { auth } = useAuth();
+  const { toasts, remove, success, error } = useToast();
+  const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+
+  const fetchSubjects = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await api.get('/subjects');
+      setSubjects(data);
+    } catch (err: any) {
+      console.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    fetchSubjects();
+  }, [fetchSubjects]);
+
+  const handleFileChange = (file: File | null) => {
+    setImportFile(file);
+  };
+
+  const importCSV = async () => {
+    if (!importFile) return error('Select a CSV file first');
+    const text = await importFile.text();
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (lines.length === 0) return error('Empty CSV');
+    const header = lines[0].split(',').map((value) => value.trim().toLowerCase());
+    const rows = lines.slice(1).map((line) => line.split(',').map((value) => value.trim()));
+
+    const items = rows.map((columns) => {
+      const obj: any = {};
+      columns.forEach((value, index) => {
+        const key = header[index] || `col${index}`;
+        obj[key] = value;
+      });
+      return {
+        name: obj['subject name'] || obj['name'] || obj['subject'] || '',
+        code: obj['code'] || '',
+        credits: Number(obj['credits'] || obj['credit'] || 0),
+        type: obj['type'] || 'Core',
+        teacher: obj['teacher'] || '',
+      };
+    }).filter((item) => item.name);
+
+    if (items.length === 0) return error('No valid rows to import');
+
+    try {
+      for (const item of items) {
+        await api.post('/subjects', item);
+      }
+      await fetchSubjects();
+      setImportFile(null);
+      success(`Imported ${items.length} subjects`);
+    } catch (err: any) {
+      error(err.message);
+    }
+  };
+
+  const handleSubmit = async (data: any) => {
+    try {
+      if (modalMode === 'add') {
+        await api.post('/subjects', data);
+      } else {
+        await api.put(`/subjects/${selectedSubject?.id}`, data);
+      }
+      await fetchSubjects();
+      setShowModal(false);
+      success(modalMode === 'add' ? 'Subject added successfully.' : 'Subject updated successfully.');
+    } catch (err: any) {
+      error(err.message);
+    }
+  };
+
+  const handleDelete = async (subject: Subject) => {
+    const ok = await confirm(`This will permanently remove ${subject.name} from the curriculum.`, 'Delete Subject?');
+    if (!ok) return;
+    try {
+      await api.delete(`/subjects/${subject.id}`);
+      await fetchSubjects();
+      success('Subject deleted successfully.');
+    } catch (err: any) {
+      error(err.message);
+    }
+  };
+
+  const columns: Column<Subject>[] = [
+    { header: 'Subject Code', accessor: (subject) => <span className="font-bold text-gray-900">{subject.code}</span> },
+    { header: 'Subject Name', accessor: (subject) => <div className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-[#2D6CDF]" /><span className="text-gray-900 font-medium">{subject.name}</span></div> },
+    { header: 'Teacher', accessor: (subject) => <div className="flex items-center gap-2 text-gray-600"><GraduationCap className="w-4 h-4 text-gray-400" /><span>{subject.teacher || 'Not Assigned'}</span></div> },
+    { header: 'Classes', accessor: 'classes' },
+    { header: 'Students', accessor: 'students' },
+    { header: 'Credits', accessor: 'credits' },
+    { header: 'Type', accessor: (subject) => <span className={`px-3 py-1 rounded-full text-xs font-bold ${subject.type === 'Core' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{subject.type}</span> },
+  ];
+
+  const stats = [
+    { label: 'Total Subjects', value: subjects.length },
+    { label: 'Core Subjects', value: subjects.filter((subject) => subject.type === 'Core').length, color: 'text-blue-600' },
+    { label: 'Electives', value: subjects.filter((subject) => subject.type === 'Elective').length, color: 'text-purple-600' },
+    { label: 'Teachers', value: new Set(subjects.map((subject) => subject.teacher).filter(Boolean)).size, color: 'text-green-600' },
+  ];
+
+  const filteredSubjects = subjects.filter((subject) =>
+    subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (subject.teacher?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+  );
+
+  const handleEditClick = (subject: Subject) => {
+    setSelectedSubject(subject);
+    setModalMode('edit');
+    setShowModal(true);
+  };
+
+  return (
+    <div className="p-6">
+      <div className="mb-6 flex items-center gap-3">
+        <label htmlFor="csv-upload" className="px-4 py-2 bg-teal-700 text-white rounded-md cursor-pointer">Select File
+          <File className="inline-block ml-2 h-4 w-4" />
+        </label>
+        <input id="csv-upload" type="file" accept=".csv,text/csv" onChange={(e) => handleFileChange(e.target.files?.[0] || null)} className="hidden" />
+        <button onClick={importCSV} className="px-4 py-2 bg-green-500 text-white rounded-md"><Upload className="inline-block mr-2 h-4 w-4" /> Import CSV</button>
+        <button onClick={() => { const sample = 'Subject Name,Code,Credits,Type,Teacher\nMathematics,MATH-10,3,Core,John Doe\nEnglish,ENG-10,3,Core,Jane Smith'; const blob = new Blob([sample], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'subjects-sample.csv'; anchor.click(); URL.revokeObjectURL(url); }} className="px-4 py-2 bg-gray-600 text-white rounded-md"><File className="inline-block mr-2 h-4 w-4" /> Sample CSV</button>
+      </div>
+
+      <GenericTable
+        title="Subject Management"
+        description="Manage subjects and curriculum"
+        stats={stats}
+        data={filteredSubjects}
+        columns={columns}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onAdd={() => { setModalMode('add'); setSelectedSubject(null); setShowModal(true); }}
+        addLabel="Add Subject"
+        onView={(subject) => { setSelectedSubject(subject); setShowViewModal(true); }}
+        onEdit={handleEditClick}
+        onDelete={handleDelete}
+        isLoading={loading && subjects.length === 0}
+        canAdd={auth?.role.toLowerCase() === 'admin'}
+        canEdit={auth?.role.toLowerCase() === 'admin'}
+        canDelete={auth?.role.toLowerCase() === 'admin'}
+      />
+
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={modalMode === 'add' ? 'Add New Subject' : 'Edit Subject'}>
+        <GenericForm fields={formFields} initialData={selectedSubject || { type: 'Core', credits: 3 }} onSubmit={handleSubmit} onCancel={() => setShowModal(false)} submitLabel={modalMode === 'add' ? 'Add Subject' : 'Save Changes'} />
+      </Modal>
+
+      <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Subject Details">
+        {selectedSubject && (
+          <div className="space-y-8">
+            <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">
+                {selectedSubject.name.charAt(0)}
+              </div>
+              <div>
+                <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedSubject.name}</h3>
+                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedSubject.code}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {[
+                { icon: BookOpen, label: 'Subject Name', value: selectedSubject.name },
+                { icon: GraduationCap, label: 'Assigned Teacher', value: selectedSubject.teacher || 'Not Assigned' },
+                { icon: Users, label: 'Total Students', value: selectedSubject.students || 0 },
+                { icon: Award, label: 'Credits', value: selectedSubject.credits },
+                { icon: Award, label: 'Subject Type', value: selectedSubject.type },
+                { icon: Users, label: 'Assigned Classes', value: selectedSubject.classes || 'None' },
+              ].map((item, index) => (
+                <div key={index} className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 font-bold uppercase tracking-widest block">{item.label}</label>
+                    <p className="text-gray-900 font-bold">{item.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+              <button onClick={() => setShowViewModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all">Close</button>
+              {auth?.role.toLowerCase() === 'admin' && (
+                <button onClick={() => { setShowViewModal(false); handleEditClick(selectedSubject); }} className="px-8 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20">
+                  Edit Subject
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <ToastContainer toasts={toasts} onRemove={remove} />
+      <ConfirmDialog isOpen={confirmState.isOpen} title={confirmState.title} message={confirmState.message} confirmLabel={confirmState.confirmLabel} onConfirm={handleConfirm} onCancel={handleCancel} />
+    </div>
+  );
+}
