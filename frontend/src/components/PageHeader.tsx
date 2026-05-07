@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
-import { cn } from './ui/utils';
+import { cn } from '@/utils/utils';
 
 interface PageHeaderProps {
   title: string;

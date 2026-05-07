@@ -1,16 +1,16 @@
 import { ChangeEvent, useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Phone, BookOpen, User, Calendar, MapPin, Upload, Download, FileText, Search, Filter, X } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
-import { useAuth } from '@/context/AuthContext';
-import { useToast, useConfirm } from '@/hooks/useToast';
-import GenericTable, { type Column } from '@/components/ui/GenericTable';
-import Modal from '@/components/ui/Modal';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import { ToastContainer } from '@/components/ui/Toast';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { formatDateForInput, formatDateForAPI, formatDateForDisplay } from '@/utils/dateUtils';
 import type { Student } from '../model/student.types';
+import GenericForm, { FormField } from '@/components/GenericForm';
+import { useApi } from '@/hooks/useApi';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useConfirm, useToast } from '@/hooks/useToast';
+import GenericTable, { Column } from '@/components/GenericTable';
+import Modal from '@/components/Modal';
+import { ToastContainer } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface ApiStudent {
   id: number;
@@ -68,6 +68,8 @@ export default function StudentsView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('All Classes');
   const [filterSection, setFilterSection] = useState('All Sections');
+  const [filterShift, setFilterShift] = useState('All Shifts');
+  const [filterBadge, setFilterBadge] = useState('All Badges');
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);

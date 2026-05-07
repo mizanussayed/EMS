@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Edit, Plus, Trash2 } from 'lucide-react';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { ToastContainer } from '@/components/ui/Toast';
+import GenericForm, { type FormField } from '@/components/GenericForm';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { ToastContainer } from '@/components/Toast';
 import { useConfirm, useToast } from '@/hooks/useToast';
 import { useCreateShiftMutation, useDeleteShiftMutation, useShifts, useUpdateShiftMutation } from '../hooks/useShifts';
 import type { Shift, ShiftInput } from '../model/shift.types';

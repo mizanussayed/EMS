@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Clock, Edit, User, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
-import Modal from '@/components/ui/Modal';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import { useAuth } from '@/context/AuthContext';
+import Modal from '@/components/Modal';
+import GenericForm, { type FormField } from '@/components/GenericForm';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useToast, useConfirm } from '@/hooks/useToast';
-import { ToastContainer } from '@/components/ui/Toast';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { ToastContainer } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface TimetableEntry {
   id: number;

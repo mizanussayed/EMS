@@ -3,10 +3,10 @@ import { Book as BookIcon, User, Clock, Info } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/useToast';
-import GenericTable, { type Column } from '@/components/ui/GenericTable';
-import Modal from '@/components/ui/Modal';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import { ToastContainer } from '@/components/ui/Toast';
+import GenericTable, { type Column } from '@/components/GenericTable';
+import Modal from '@/components/Modal';
+import GenericForm, { type FormField } from '@/components/GenericForm';
+import { ToastContainer } from '@/components/Toast';
 
 interface BookType {
   id: number;

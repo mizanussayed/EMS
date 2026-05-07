@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FileText, User, TrendingUp, Download } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
-import GenericTable, { type Column } from '@/components/ui/GenericTable';
+import GenericTable, { type Column } from '@/components/GenericTable';
 
 interface Result {
   id: number;

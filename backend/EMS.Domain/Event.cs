@@ -9,4 +9,6 @@ public class Event
     public DateTime EndDate { get; set; }
     public string Location { get; set; } = default!;
     public string Type { get; set; } = "General";
+    public string OrganizedBy { get; set; } = default!;
+    public bool IsActive { get; set; } = true;
 }

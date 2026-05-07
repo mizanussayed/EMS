@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BookOpen, GraduationCap, Award, Users, File, Upload } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
-import { useAuth } from '@/context/AuthContext';
 import { useToast, useConfirm } from '@/hooks/useToast';
-import GenericTable, { type Column } from '@/components/ui/GenericTable';
-import Modal from '@/components/ui/Modal';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import { ToastContainer } from '@/components/ui/Toast';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import GenericTable, { type Column } from '@/components/GenericTable';
+import Modal from '@/components/Modal';
+import GenericForm, { type FormField } from '@/components/GenericForm';
+import { ToastContainer } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface Subject {
   id: number;

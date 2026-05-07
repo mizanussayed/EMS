@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, User, Settings } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
-import GenericTable, { type Column } from '@/components/ui/GenericTable';
-import Modal from '@/components/ui/Modal';
-import { RoleGuard } from '@/app/components/auth/RoleGuard';
+import GenericTable, { type Column } from '@/components/GenericTable';
+import Modal from '@/components/Modal';
+import { RoleGuard } from '@/app/guards/RoleGuard';
 import FeeConfigurationView from './FeeConfigurationView';
 
 interface FeeRecord {

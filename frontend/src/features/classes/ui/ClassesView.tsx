@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { DoorOpen, Edit, GraduationCap, Plus, Trash2, Users, Clock, BookOpen } from 'lucide-react';
-import GenericTable, { type Column } from '@/components/ui/GenericTable';
-import Modal from '@/components/ui/Modal';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { ToastContainer } from '@/components/ui/Toast';
+import GenericTable, { type Column } from '@/components/GenericTable';
+import Modal from '@/components/Modal';
+import GenericForm, { type FormField } from '@/components/GenericForm';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { ToastContainer } from '@/components/Toast';
 import { useConfirm, useToast } from '@/hooks/useToast';
 import { useClassLookups, useClasses, useCreateClassMutation, useDeleteClassMutation, useUpdateClassMutation } from '../hooks/useClasses';
 import type { ClassInput, LookupOption, SchoolClass } from '../model/class.types';

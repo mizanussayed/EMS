@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, Settings, Plus, Edit, Trash2 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/useToast';
-import Modal from '@/components/ui/Modal';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
+import Modal from '@/components/Modal';
+import GenericForm, { type FormField } from '@/components/GenericForm';
 
 interface FeeStructure {
   id?: number;

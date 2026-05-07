@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { School, User, Bell, Lock, Globe, Palette, Save } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { HasRole } from '@/app/components/auth/RoleGuard';
+import { HasRole } from '@/app/guards/RoleGuard';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export default function SettingsView() {
   const { auth } = useAuth();

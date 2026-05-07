@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export default function MainLayout() {
   const { auth, logout } = useAuth();
@@ -15,15 +15,14 @@ export default function MainLayout() {
       <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          onLogout={logout}
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          role={auth.role}
-          userName={auth.userName}
-        />
-        
-        <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          <Header
+            onLogout={logout}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            role={auth.role}
+            userName={auth.userName}
+          />
+          <main className="flex-1 overflow-y-auto">
+            <Outlet />
         </main>
       </div>
     </div>

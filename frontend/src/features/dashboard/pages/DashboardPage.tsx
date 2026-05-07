@@ -13,9 +13,10 @@ import {
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader } from '@/app/components/ui/PageHeader';
-import { StatCard } from '@/app/components/ui/StatCard';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
+import { PageHeader } from '@/components/PageHeader';
+import { StatCard } from '@/components/StatCard';
+
 
 export default function DashboardPage() {
   const navigate = useNavigate();

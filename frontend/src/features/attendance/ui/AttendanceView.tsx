@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Calendar, CheckCircle, XCircle, Download, Clock, Search, Info } from 'lucide-react';
-import { RoleGuard } from '@/app/components/auth/RoleGuard';
+import { RoleGuard } from '@/app/guards/RoleGuard';
 import { useAttendanceByClass, useAttendanceStudents } from '../hooks/useAttendance';
 import type { AttendanceRecord, AttendanceStatus } from '../model/attendance.types';
 

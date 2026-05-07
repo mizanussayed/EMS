@@ -1,6 +1,5 @@
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCallback, useMemo } from 'react';
-import { useAuth } from '../context/AuthContext';
-
 interface ApiOptions extends RequestInit {
   body?: any;
 }

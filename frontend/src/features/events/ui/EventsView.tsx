@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { Calendar, MapPin, Eye } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { useToast, useConfirm } from '@/hooks/useToast';
-import GridList from '@/app/components/ui/GridList';
-import Modal from '@/components/ui/Modal';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import { ToastContainer } from '@/components/ui/Toast';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import GridList from '@/app/components/uiGridList';
+import Modal from '@/components/Modal';
+import GenericForm, { type FormField } from '@/components/GenericForm';
+import { ToastContainer } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface Event {
   id: number;

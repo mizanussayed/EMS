@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { BarChart3, Download, FileText, TrendingUp, Calendar, Search } from 'lucide-react';
-import { RoleGuard } from '@/app/components/auth/RoleGuard';
+import { RoleGuard } from '@/app/guards/RoleGuard';
 import { useToast } from '@/hooks/useToast';
-import { ToastContainer } from '@/components/ui/Toast';
+import { ToastContainer } from '@/components/Toast';
 import { useDashboardSummary } from '@/features/dashboard/hooks/useDashboardSummary';
 
 export default function ReportsView() {

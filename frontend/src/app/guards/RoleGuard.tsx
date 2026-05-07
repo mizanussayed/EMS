@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { ShieldAlert } from 'lucide-react';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface RoleGuardProps {
   children: ReactNode;

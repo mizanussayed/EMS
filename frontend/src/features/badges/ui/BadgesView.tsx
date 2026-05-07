@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { useToast, useConfirm } from '@/hooks/useToast';
-import { ToastContainer } from '@/components/ui/Toast';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { ToastContainer } from '@/components/Toast';
+import GenericForm, { type FormField } from '@/components/GenericForm';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface StudentBadge {
   id: number;

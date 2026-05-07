@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Edit, User, Phone, Calendar, BookOpen, CheckCircle, XCircle, Clock, FileText, CreditCard, StickyNote, FolderOpen, IdCard, ChevronRight, AlertCircle } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface Student {
   id: number;

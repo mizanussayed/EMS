@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { FileText, Calendar, Clock, CheckCircle, Download } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import GenericTable, { type Column } from '@/components/ui/GenericTable';
-import Modal from '@/components/ui/Modal';
-import GenericForm, { type FormField } from '@/components/ui/GenericForm';
-import { ToastContainer } from '@/components/ui/Toast';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import GenericTable, { type Column } from '@/components/GenericTable';
+import Modal from '@/components/Modal';
+import GenericForm, { type FormField } from '@/components/GenericForm';
+import { ToastContainer } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { useConfirm, useToast } from '@/hooks/useToast';
 import { formatDateForAPI, formatDateForDisplay, formatDateForInput } from '@/utils/dateUtils';
-import { downloadClassWiseResults, downloadExamSummary, downloadStudentWiseResults, downloadTranscriptCard } from '@/app/utils/examReports';
 import { useDeleteExamMutation, useExamResults, useExams, useCreateExamMutation, useUpdateExamMutation } from '../hooks/useExams';
 import type { Exam, ExamInput, ExamResult } from '../model/exam.types';
+import { downloadClassWiseResults, downloadStudentWiseResults, downloadTranscriptCard, downloadExamSummary } from '@/utils/examReports';
 
 const formFields: FormField[] = [
   { name: 'title', label: 'Exam Title', type: 'text', placeholder: 'e.g., Annual Final Term 2025', required: true, colSpan: 2 },

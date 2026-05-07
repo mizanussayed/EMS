@@ -26,7 +26,7 @@ const Teachers = lazy(() => import('@/features/teachers/pages/TeachersPage'));
 const Timetable = lazy(() => import('@/features/timetable/pages/TimetablePage'));
 
 function RouteFallback() {
-  return <div className="p-8 text-sm text-gray-500">Loading...</div>;
+  return <div className="p-8 text-sm text-white bg-gradient-to-br from-[#2D6CDF] to-[#1a4ba8] min-h-screen">Loading...</div>;
 }
 
 function NotFound() {
@@ -63,7 +63,6 @@ export default function AppRouter() {
               <Route path="/exams" element={<Exams />} />
               <Route path="/results" element={<Results />} />
               <Route path="/timetable" element={<Timetable />} />
-              <Route path="/routine" element={<Timetable />} />
               <Route path="/fees" element={<Fees />} />
               <Route path="/library" element={<Library />} />
               <Route path="/events" element={<Events />} />

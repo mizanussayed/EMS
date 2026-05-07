@@ -1,6 +1,6 @@
-import AppProviders from './providers/AppProviders';
-import AppRouter from './router/AppRouter';
-import AppErrorBoundary from './error-boundary/AppErrorBoundary';
+import AppProviders from './app/AppProviders';
+import AppRouter from './app/AppRouter';
+import AppErrorBoundary from './app/AppErrorBoundary';
 
 export default function App() {
   return (

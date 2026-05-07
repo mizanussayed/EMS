@@ -1,4 +1,4 @@
-import { SelectItem } from '../hooks/selectItem'; // Adjust the import path as needed
+import { SelectItem } from '@/hooks/selectItem';
 import React, { useState, useEffect } from 'react';
 
 export interface FormField {
