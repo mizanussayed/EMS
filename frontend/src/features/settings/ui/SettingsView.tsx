@@ -2,25 +2,13 @@ import { useState } from 'react';
 import { School, User, Bell, Lock, Globe, Palette, Save } from 'lucide-react';
 import { HasRole } from '@/app/guards/RoleGuard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { defaultNotificationSettings, defaultSchoolInfo } from '../hooks/useSettings';
 
 export default function SettingsView() {
   const { auth } = useAuth();
-  const [schoolInfo, setSchoolInfo] = useState({
-    name: '',
-    code: '',
-    email: '',
-    phone: '',
-    address: '',
-  });
+  const [schoolInfo, setSchoolInfo] = useState(defaultSchoolInfo);
 
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    smsNotifications: false,
-    pushNotifications: true,
-    attendanceAlerts: true,
-    feeReminders: true,
-    examNotifications: true,
-  });
+  const [notifications, setNotifications] = useState(defaultNotificationSettings);
 
   const settingsCategories = [
     { icon: School, title: 'School Information', description: 'Manage school details and branding', color: 'bg-blue-500' },

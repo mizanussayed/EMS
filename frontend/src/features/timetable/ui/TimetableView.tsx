@@ -1,30 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, Edit, User, MapPin, Plus, Trash2 } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
 import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useToast, useConfirm } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
-
-interface TimetableEntry {
-  id: number;
-  className: string;
-  subjectName: string;
-  teacherName: string;
-  dayOfWeek: string;
-  startTime: string;
-  endTime: string;
-  room: string;
-}
-
-interface Student {
-  id: number;
-  className?: string;
-  firstName: string;
-  lastName: string;
-}
+import type { StudentClass, TimetableEntry, TimetableInput } from '../model/timetable.types';
+import { useCreateTimetableMutation, useDeleteTimetableMutation, useTimetableClasses, useTimetableEntries, useUpdateTimetableMutation } from '../hooks/useTimetable';
 
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
 const days = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
@@ -39,62 +22,36 @@ const getTimetableFormFields = (): FormField[] => [
 ];
 
 export default function TimetableView() {
-  const api = useApi();
   const { auth } = useAuth();
+  const { data: classesData = [] } = useTimetableClasses();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const [selectedClass, setSelectedClass] = useState('');
-  const [entries, setEntries] = useState<TimetableEntry[]>([]);
-  const [classes, setClasses] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedEntry, setSelectedEntry] = useState<TimetableEntry | null>(null);
+  const classes = Array.from(new Set(classesData.map((student: StudentClass) => student.className).filter(Boolean) as string[])).sort();
+  const { data: entries = [], isLoading } = useTimetableEntries(selectedClass);
+  const createTimetableMutation = useCreateTimetableMutation(selectedClass);
+  const updateTimetableMutation = useUpdateTimetableMutation(selectedClass);
+  const deleteTimetableMutation = useDeleteTimetableMutation(selectedClass);
 
-  const fetchClasses = useCallback(async () => {
-    try {
-      const data = await api.get('/students');
-      const classSet = new Set<string>();
-      data.forEach((student: Student) => {
-        if (student.className) classSet.add(student.className);
-      });
-      const classArray = Array.from(classSet).sort();
-      setClasses(classArray);
-      if (classArray.length > 0 && !selectedClass) {
-        setSelectedClass(classArray[0]);
-      }
-    } catch (err: any) {
-      error(err.message);
+  useEffect(() => {
+    if (classes.length > 0 && !selectedClass) {
+      setSelectedClass(classes[0]);
     }
-  }, [api, selectedClass, error]);
-
-  const fetchTimetable = useCallback(async () => {
-    if (!selectedClass) return;
-    try {
-      setLoading(true);
-      const data = await api.get(`/timetable/${encodeURIComponent(selectedClass)}`);
-      setEntries(data || []);
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, selectedClass]);
-
-  useEffect(() => { fetchClasses(); }, [fetchClasses]);
-  useEffect(() => { fetchTimetable(); }, [fetchTimetable]);
+  }, [classes, selectedClass]);
 
   const handleSubmit = async (data: any) => {
     try {
-      const payload = { ...data, className: selectedClass };
+      const payload: TimetableInput = { ...data, className: selectedClass };
       if (modalMode === 'add') {
-        await api.post('/timetable', payload);
+        await createTimetableMutation.mutateAsync(payload);
         success('Timetable entry added successfully.');
       } else if (selectedEntry) {
-        await api.put(`/timetable/${selectedEntry.id}`, payload);
+        await updateTimetableMutation.mutateAsync({ id: selectedEntry.id, payload });
         success('Timetable entry updated successfully.');
       }
-      await fetchTimetable();
       setShowModal(false);
       setSelectedEntry(null);
     } catch (err: any) {
@@ -106,8 +63,7 @@ export default function TimetableView() {
     const ok = await confirm('This timetable entry will be permanently removed.', 'Delete Entry?');
     if (!ok) return;
     try {
-      await api.delete(`/timetable/${id}`);
-      await fetchTimetable();
+      await deleteTimetableMutation.mutateAsync(id);
       success('Timetable entry deleted successfully.');
     } catch (err: any) {
       error(err.message);

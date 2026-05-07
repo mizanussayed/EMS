@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { BookOpen, GraduationCap, Award, Users, File, Upload } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
 import { useToast, useConfirm } from '@/hooks/useToast';
 import GenericTable, { type Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
@@ -8,17 +7,8 @@ import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-
-interface Subject {
-  id: number;
-  name: string;
-  code: string;
-  teacher?: string;
-  classes?: string;
-  students?: number;
-  credits: number;
-  type: string;
-}
+import type { Subject, SubjectInput } from '../model/subject.types';
+import { useCreateSubjectMutation, useDeleteSubjectMutation, useSubjects, useUpdateSubjectMutation } from '../hooks/useSubjects';
 
 const formFields: FormField[] = [
   { name: 'name', label: 'Subject Name', type: 'text', placeholder: 'e.g., Mathematics', required: true },
@@ -30,34 +20,19 @@ const formFields: FormField[] = [
 ];
 
 export default function SubjectsView() {
-  const api = useApi();
   const { auth } = useAuth();
+  const { data = [], isLoading } = useSubjects();
+  const createSubjectMutation = useCreateSubjectMutation();
+  const updateSubjectMutation = useUpdateSubjectMutation();
+  const deleteSubjectMutation = useDeleteSubjectMutation();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
-
-  const fetchSubjects = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await api.get('/subjects');
-      setSubjects(data);
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
-
-  useEffect(() => {
-    fetchSubjects();
-  }, [fetchSubjects]);
 
   const handleFileChange = (file: File | null) => {
     setImportFile(file);
@@ -90,9 +65,8 @@ export default function SubjectsView() {
 
     try {
       for (const item of items) {
-        await api.post('/subjects', item);
+        await createSubjectMutation.mutateAsync(item as SubjectInput);
       }
-      await fetchSubjects();
       setImportFile(null);
       success(`Imported ${items.length} subjects`);
     } catch (err: any) {
@@ -103,11 +77,10 @@ export default function SubjectsView() {
   const handleSubmit = async (data: any) => {
     try {
       if (modalMode === 'add') {
-        await api.post('/subjects', data);
+        await createSubjectMutation.mutateAsync(data);
       } else {
-        await api.put(`/subjects/${selectedSubject?.id}`, data);
+        await updateSubjectMutation.mutateAsync({ id: selectedSubject?.id ?? 0, payload: data });
       }
-      await fetchSubjects();
       setShowModal(false);
       success(modalMode === 'add' ? 'Subject added successfully.' : 'Subject updated successfully.');
     } catch (err: any) {
@@ -119,8 +92,7 @@ export default function SubjectsView() {
     const ok = await confirm(`This will permanently remove ${subject.name} from the curriculum.`, 'Delete Subject?');
     if (!ok) return;
     try {
-      await api.delete(`/subjects/${subject.id}`);
-      await fetchSubjects();
+      await deleteSubjectMutation.mutateAsync(subject.id);
       success('Subject deleted successfully.');
     } catch (err: any) {
       error(err.message);
@@ -138,13 +110,13 @@ export default function SubjectsView() {
   ];
 
   const stats = [
-    { label: 'Total Subjects', value: subjects.length },
-    { label: 'Core Subjects', value: subjects.filter((subject) => subject.type === 'Core').length, color: 'text-blue-600' },
-    { label: 'Electives', value: subjects.filter((subject) => subject.type === 'Elective').length, color: 'text-purple-600' },
-    { label: 'Teachers', value: new Set(subjects.map((subject) => subject.teacher).filter(Boolean)).size, color: 'text-green-600' },
+    { label: 'Total Subjects', value: data.length },
+    { label: 'Core Subjects', value: data.filter((subject) => subject.type === 'Core').length, color: 'text-blue-600' },
+    { label: 'Electives', value: data.filter((subject) => subject.type === 'Elective').length, color: 'text-purple-600' },
+    { label: 'Teachers', value: new Set(data.map((subject) => subject.teacher).filter(Boolean)).size, color: 'text-green-600' },
   ];
 
-  const filteredSubjects = subjects.filter((subject) =>
+  const filteredSubjects = data.filter((subject) =>
     subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (subject.teacher?.toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -180,7 +152,7 @@ export default function SubjectsView() {
         onView={(subject) => { setSelectedSubject(subject); setShowViewModal(true); }}
         onEdit={handleEditClick}
         onDelete={handleDelete}
-        isLoading={loading && subjects.length === 0}
+        isLoading={isLoading}
         canAdd={auth?.role.toLowerCase() === 'admin'}
         canEdit={auth?.role.toLowerCase() === 'admin'}
         canDelete={auth?.role.toLowerCase() === 'admin'}

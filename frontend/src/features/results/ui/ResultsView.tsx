@@ -1,63 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, User, TrendingUp, Download } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
 import GenericTable, { type Column } from '@/components/GenericTable';
-
-interface Result {
-  id: number;
-  studentId: number;
-  studentName: string;
-  subjectName: string;
-  marksObtained: number;
-  totalMarks: number;
-  grade: string;
-  remarks?: string;
-}
-
-interface Exam {
-  id: number;
-  title: string;
-  type: string;
-}
+import type { Exam, Result } from '../model/result.types';
+import { useExamResults, useExams } from '../hooks/useResults';
 
 export default function ResultsView() {
-  const api = useApi();
-  const [loading, setLoading] = useState(true);
-  const [results, setResults] = useState<Result[]>([]);
-  const [exams, setExams] = useState<Exam[]>([]);
+  const { data: exams = [] } = useExams();
   const [selectedExamId, setSelectedExamId] = useState<number | ''>('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchExams = useCallback(async () => {
-    try {
-      const data = await api.get('/exams');
-      setExams(data);
-      if (data.length > 0) setSelectedExamId(data[0].id);
-    } catch (err: any) {
-      console.error(err.message);
+  useEffect(() => {
+    if (selectedExamId === '' && exams.length > 0) {
+      setSelectedExamId(exams[0].id);
     }
-  }, [api]);
+  }, [exams, selectedExamId]);
 
-  const fetchResults = useCallback(async () => {
-    if (!selectedExamId) return;
-    try {
-      setLoading(true);
-      const data = await api.get(`/exams/${selectedExamId}/results`);
-      setResults(data);
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, selectedExamId]);
+  const { data: results = [], isLoading } = useExamResults(selectedExamId);
 
   useEffect(() => {
-    fetchExams();
-  }, [fetchExams]);
-
-  useEffect(() => {
-    fetchResults();
-  }, [fetchResults]);
+    if (exams.length > 0 && selectedExamId === '') {
+      setSelectedExamId(exams[0].id);
+    }
+  }, [exams, selectedExamId]);
 
   const columns: Column<Result>[] = [
     { header: 'Student', accessor: (result) => <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 border border-gray-100"><User className="w-5 h-5" /></div><div><div className="font-bold text-gray-900">{result.studentName}</div><div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ID: {result.studentId}</div></div></div> },
@@ -116,9 +80,9 @@ export default function ResultsView() {
         columns={columns}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        isLoading={loading && results.length === 0}
+        isLoading={isLoading}
         addLabel="Refresh Results"
-        onAdd={fetchResults}
+        onAdd={() => undefined}
       />
     </div>
   );

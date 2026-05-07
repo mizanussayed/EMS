@@ -1,22 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Calendar, MapPin, Eye } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
 import { useToast, useConfirm } from '@/hooks/useToast';
 import GridList from '@/components/GridList';
 import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  location: string;
-  type: string;
-}
+import type { EventItem } from '../model/event.types';
+import { useCreateEventMutation, useDeleteEventMutation, useEvents, useUpdateEventMutation } from '../hooks/useEvents';
 
 const eventFormFields: FormField[] = [
   { name: 'title', label: 'Event Title', type: 'text', placeholder: 'e.g. Annual Sports Meet 2026', required: true, colSpan: 2 },
@@ -35,41 +26,25 @@ const eventFormFields: FormField[] = [
 ];
 
 export default function EventsView() {
-  const api = useApi();
+  const { data = [], isLoading } = useEvents();
+  const createEventMutation = useCreateEventMutation();
+  const updateEventMutation = useUpdateEventMutation();
+  const deleteEventMutation = useDeleteEventMutation();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
-  const [events, setEvents] = useState<Event[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-
-  const fetchEvents = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await api.get('/events');
-      setEvents(data);
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
-
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
 
   const handleSubmit = async (data: any) => {
     try {
       if (modalMode === 'add') {
-        await api.post('/events', data);
+        await createEventMutation.mutateAsync(data);
       } else {
-        await api.put(`/events/${selectedEvent?.id}`, data);
+        await updateEventMutation.mutateAsync({ id: selectedEvent?.id ?? 0, payload: data });
       }
-      await fetchEvents();
       setShowModal(false);
     } catch (err: any) {
       error(err.message);
@@ -80,26 +55,25 @@ export default function EventsView() {
     const ok = await confirm('This event will be permanently removed from the calendar.', 'Delete Event?');
     if (!ok) return;
     try {
-      await api.delete(`/events/${id}`);
-      await fetchEvents();
+      await deleteEventMutation.mutateAsync(id);
       success('Event deleted successfully.');
     } catch (err: any) {
       error(err.message);
     }
   };
 
-  const filteredEvents = events.filter((event) =>
+  const filteredEvents = data.filter((event) =>
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const stats = [
-    { label: 'Upcoming', value: events.length },
-    { label: 'This Month', value: events.filter((event) => new Date(event.startDate).getMonth() === new Date().getMonth()).length },
-    { label: 'Venues', value: new Set(events.map((event) => event.location)).size },
+    { label: 'Upcoming', value: data.length },
+    { label: 'This Month', value: data.filter((event) => new Date(event.startDate).getMonth() === new Date().getMonth()).length },
+    { label: 'Venues', value: new Set(data.map((event) => event.location)).size },
   ];
 
-  const renderEventCard = (event: Event) => (
+  const renderEventCard = (event: EventItem) => (
     <div key={event.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl transition-all duration-300">
       <div className="p-6">
         <div className="flex justify-between items-start mb-4">
@@ -140,7 +114,7 @@ export default function EventsView() {
         addLabel="Create Event"
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        isLoading={loading && events.length === 0}
+        isLoading={isLoading}
       />
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={modalMode === 'add' ? 'Create New Event' : 'Edit Event'}>

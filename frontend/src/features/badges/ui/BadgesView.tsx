@@ -1,18 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
 import { useToast, useConfirm } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/Toast';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import type { StudentBadge } from '../model/badge.types';
+import { useBadges, useCreateBadgeMutation, useDeleteBadgeMutation, useUpdateBadgeMutation } from '../hooks/useBadges';
 
-interface StudentBadge {
-  id: number;
-  name: string;
-  studentCount: number;
-  description?: string;
-  isActive: boolean;
-}
 
 const formFields: FormField[] = [
   { name: 'name', label: 'Name', type: 'text', required: true },
@@ -21,10 +15,12 @@ const formFields: FormField[] = [
 ];
 
 export default function BadgesView() {
-  const api = useApi();
+  const { data = [], isLoading } = useBadges();
+  const createBadgeMutation = useCreateBadgeMutation();
+  const updateBadgeMutation = useUpdateBadgeMutation();
+  const deleteBadgeMutation = useDeleteBadgeMutation();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
-  const [data, setData] = useState<StudentBadge[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selected, setSelected] = useState<StudentBadge | null>(null);
   const [formData, setFormData] = useState<Partial<StudentBadge>>({
@@ -33,17 +29,7 @@ export default function BadgesView() {
     isActive: true,
   });
 
-  const fetchData = useCallback(async () => {
-    try {
-      setData(await api.get('/badges'));
-    } catch (err: any) {
-      console.error(err);
-    }
-  }, [api]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   const resetForm = () => {
     setSelected(null);
@@ -52,9 +38,11 @@ export default function BadgesView() {
 
   const handleSubmit = async (submittedFormData: any) => {
     try {
-      if (!selected) await api.post('/badges', submittedFormData);
-      else await api.put(`/badges/${selected.id}`, submittedFormData);
-      await fetchData();
+      if (!selected) {
+        await createBadgeMutation.mutateAsync(submittedFormData);
+      } else {
+        await updateBadgeMutation.mutateAsync({ id: selected.id, payload: submittedFormData });
+      }
       success('Student badge saved successfully.');
       resetForm();
     } catch (err: any) {
@@ -65,8 +53,7 @@ export default function BadgesView() {
   const handleDelete = async (item: StudentBadge) => {
     if (!await confirm(`Delete Badge "${item.name}"?`)) return;
     try {
-      await api.delete(`/badges/${item.id}`);
-      await fetchData();
+      await deleteBadgeMutation.mutateAsync(item.id);
       success('Student badge deleted successfully.');
     } catch (err: any) {
       error(err.message);

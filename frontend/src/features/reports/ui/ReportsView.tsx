@@ -3,7 +3,8 @@ import { BarChart3, Download, FileText, TrendingUp, Calendar, Search } from 'luc
 import { RoleGuard } from '@/app/guards/RoleGuard';
 import { useToast } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/Toast';
-import { useDashboardSummary } from '@/features/dashboard/hooks/useDashboardSummary';
+import type { GeneratedReport, ReportCategory } from '../model/report.types';
+import { useReportsSummary } from '../hooks/useReports';
 
 export default function ReportsView() {
   const { toasts, remove, warning, info } = useToast();
@@ -11,12 +12,12 @@ export default function ReportsView() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [reportSearch, setReportSearch] = useState('');
-  const [generatedReports, setGeneratedReports] = useState<{ name: string; category: string; date: string; type: string }[]>([]);
-  const summaryQuery = useDashboardSummary();
+  const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>([]);
+  const summaryQuery = useReportsSummary();
 
   const summary = summaryQuery.data;
 
-  const reportCategories = useMemo(
+  const reportCategories = useMemo<ReportCategory[]>(
     () => [
       { title: 'Student Reports', icon: FileText, count: summary?.studentCount ?? 0, color: 'bg-blue-500' },
       { title: 'Academic Reports', icon: BarChart3, count: summary?.classCount ?? 0, color: 'bg-green-500' },
