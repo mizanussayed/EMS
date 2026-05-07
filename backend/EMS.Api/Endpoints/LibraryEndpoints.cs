@@ -1,6 +1,5 @@
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
 
@@ -13,66 +12,32 @@ public static class LibraryEndpoints
             .RequireAuthorization("AdminOnly");
 
         // Books
-        libraryGroup.MapGet("/books", async (IApplicationDbContext db) =>
-            await db.Books.AsNoTracking().ToListAsync())
+        libraryGroup.MapGet("/books", async (ILibraryService libraryService) =>
+            await libraryService.GetBooksAsync())
             .WithName("GetBooks");
 
-        libraryGroup.MapPost("/books", async (Book book, IApplicationDbContext db, IAuditService audit) =>
+        libraryGroup.MapPost("/books", async (Book book, ILibraryService libraryService) =>
         {
-            db.Books.Add(book);
-            await db.SaveChangesAsync();
-            await audit.LogAsync("CREATE", "Book", book.Id.ToString(), $"Book {book.Title} added to library.");
-            return Results.Created($"/api/library/books/{book.Id}", book);
+            var created = await libraryService.AddBookAsync(book);
+            return Results.Created($"/api/library/books/{created.Id}", created);
         })
         .WithName("AddBook");
 
-        // Book Issues
-        libraryGroup.MapGet("/issues", async (IApplicationDbContext db) =>
-            await db.BookIssues
-                .AsNoTracking()
-                .Include(i => i.Book)
-                .Include(i => i.Student)
-                .Select(i => new
-                {
-                    i.Id,
-                    i.BookId,
-                    BookTitle = i.Book.Title,
-                    i.StudentId,
-                    StudentName = i.Student.FirstName + " " + i.Student.LastName,
-                    i.IssueDate,
-                    i.DueDate,
-                    i.ReturnDate,
-                    i.Status
-                })
-                .ToListAsync())
+        libraryGroup.MapGet("/issues", async (ILibraryService libraryService) =>
+            await libraryService.GetIssuedBooksAsync())
             .WithName("GetIssuedBooks");
 
-        libraryGroup.MapPost("/issues", async (BookIssue issue, IApplicationDbContext db, IAuditService audit) =>
+        libraryGroup.MapPost("/issues", async (BookIssue issue, ILibraryService libraryService) =>
         {
-            var book = await db.Books.FindAsync(issue.BookId);
-            if (book == null || book.AvailableQuantity <= 0)
-                return Results.BadRequest(new { message = "Book not available." });
-
-            book.AvailableQuantity--;
-            db.BookIssues.Add(issue);
-            await db.SaveChangesAsync();
-            await audit.LogAsync("CREATE", "BookIssue", issue.Id.ToString(), $"Book {book.Title} issued to student ID {issue.StudentId}.");
-            return Results.Created($"/api/library/issues/{issue.Id}", issue);
+            var created = await libraryService.IssueBookAsync(issue);
+            return created is null ? Results.BadRequest(new { message = "Book not available." }) : Results.Created($"/api/library/issues/{created.Id}", created);
         })
         .WithName("IssueBook");
 
-        libraryGroup.MapPut("/issues/{id:int}/return", async (int id, IApplicationDbContext db, IAuditService audit) =>
+        libraryGroup.MapPut("/issues/{id:int}/return", async (int id, ILibraryService libraryService) =>
         {
-            var issue = await db.BookIssues.Include(i => i.Book).FirstOrDefaultAsync(i => i.Id == id);
-            if (issue == null) return Results.NotFound();
-
-            issue.ReturnDate = DateTime.UtcNow;
-            issue.Status = "Returned";
-            issue.Book.AvailableQuantity++;
-
-            await db.SaveChangesAsync();
-            await audit.LogAsync("UPDATE", "BookIssue", id.ToString(), $"Book {issue.Book.Title} returned.");
-            return Results.Ok(issue);
+            var issue = await libraryService.ReturnBookAsync(id);
+            return issue is null ? Results.NotFound() : Results.Ok(issue);
         })
         .WithName("ReturnBook");
 

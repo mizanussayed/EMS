@@ -9,6 +9,6 @@ public class Fee
     public double Amount { get; set; }
     public double PaidAmount { get; set; }
     public string Status { get; set; } = "Pending";
-    public DateTime? PaymentDate { get; set; }
+    public DateTime PaymentDate { get; set; }
     public string? PaymentMethod { get; set; }
 }

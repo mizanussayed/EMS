@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Calendar, MapPin, Eye } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { useToast, useConfirm } from '@/hooks/useToast';
-import GridList from '@/app/components/uiGridList';
+import GridList from '@/components/GridList';
 import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';

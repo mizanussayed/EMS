@@ -1,6 +1,5 @@
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
 
@@ -12,53 +11,19 @@ public static class ClassEndpoints
             .WithTags("Classes")
             .RequireAuthorization("AdminOnly");
 
-        group.MapGet("", async (IApplicationDbContext db) => await db.Classes.AsNoTracking()
-        .ToListAsync());
+        group.MapGet("", async (IClassService classService) => await classService.GetAllAsync());
 
-        group.MapPost("", async (SchoolClass item, IApplicationDbContext db, IAuditService audit) =>
+        group.MapPost("", async (SchoolClass item, IClassService classService) =>
         {
-
-            db.Classes.Add(item);
-            await db.SaveChangesAsync();
-
-            await audit.LogAsync("CREATE", "Class", item.Id.ToString(),
-                 $"Class {item.Name} created.");
-            return Results.Created($"/api/classes/{item.Id}", item);
+            var created = await classService.CreateAsync(item);
+            return Results.Created($"/api/classes/{created.Id}", created);
         });
 
-        group.MapDelete("/{id:int}", async (int id, IApplicationDbContext db) =>
-        {
+        group.MapDelete("/{id:int}", async (int id, IClassService classService) =>
+            await classService.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
-            var item = await db.Classes.FindAsync(id);
-            if (item != null)
-            {
-                db.Classes.Remove(item);
-                await db.SaveChangesAsync();
-            }
-            return Results.NoContent();
-        });
-
-        group.MapPut("/{id:int}", async (int id, SchoolClass update, IApplicationDbContext db, IAuditService audit) =>
-        {
-            var existing = await db.Classes.FindAsync(id);
-            if (existing is null)
-            {
-                return Results.NotFound();
-            }
-
-            existing.Name = update.Name;
-            existing.Section = update.Section;
-            existing.ClassTeacherId = update.ClassTeacherId;
-            existing.Room = update.Room;
-            existing.ShiftId = update.ShiftId;
-            existing.NumberOfSubjects = update.NumberOfSubjects;
-            existing.NumberOfStudents = update.NumberOfStudents;
-
-            await db.SaveChangesAsync();
-            await audit.LogAsync("UPDATE", "class", existing.Id.ToString(),
-                $"Class {existing.Name} updated.");
-            return Results.NoContent();
-        })
+        group.MapPut("/{id:int}", async (int id, SchoolClass update, IClassService classService) =>
+            await classService.UpdateAsync(id, update) ? Results.NoContent() : Results.NotFound())
         .WithName("UpdateClass");
 
 

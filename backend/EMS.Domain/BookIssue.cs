@@ -9,6 +9,6 @@ public class BookIssue
     public Student Student { get; set; } = default!;
     public DateTime IssueDate { get; set; }
     public DateTime DueDate { get; set; }
-    public DateTime? ReturnDate { get; set; }
+    public DateTime ReturnDate { get; set; }
     public string Status { get; set; } = "Issued"; // Issued, Returned, Overdue
 }

@@ -1,6 +1,6 @@
+using EMS.Application.DTOs;
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
 
@@ -12,52 +12,21 @@ public static class FeeEndpoints
             .WithTags("Fees")
             .RequireAuthorization("AdminOnly");
 
-        feeGroup.MapGet("", async (IApplicationDbContext db) =>
-            await db.Fees
-                .AsNoTracking()
-                .Include(f => f.Student)
-                .Select(f => new
-                {
-                    f.Id,
-                    f.StudentId,
-                    StudentName = f.Student.FirstName + " " + f.Student.LastName,
-                    f.Student.ClassName,
-                    f.Month,
-                    f.Amount,
-                    f.PaidAmount,
-                    f.Status,
-                    f.PaymentDate,
-                    f.PaymentMethod
-                })
-                .ToListAsync())
+        feeGroup.MapGet("", async (IFeeService feeService) =>
+            await feeService.GetAllAsync())
             .WithName("GetFees");
 
-        feeGroup.MapPost("", async (Fee fee, IApplicationDbContext db, IAuditService audit) =>
+        feeGroup.MapPost("", async (Fee fee, IFeeService feeService) =>
         {
-            db.Fees.Add(fee);
-            await db.SaveChangesAsync();
-            await audit.LogAsync("CREATE", "Fee", fee.Id.ToString(), $"Fee record for student ID {fee.StudentId} created.");
-            return Results.Created($"/api/fees/{fee.Id}", fee);
+            var created = await feeService.CreateAsync(fee);
+            return Results.Created($"/api/fees/{created.Id}", created);
         })
         .WithName("CreateFeeRecord");
 
-        feeGroup.MapPut("/{id:int}/pay", async (int id, PaymentRequest request, IApplicationDbContext db, IAuditService audit) =>
+        feeGroup.MapPut("/{id:int}/pay", async (int id, FeePaymentRequest request, IFeeService feeService) =>
         {
-            var fee = await db.Fees.FindAsync(id);
-            if (fee is null) return Results.NotFound();
-
-            fee.PaidAmount += request.Amount;
-            fee.PaymentDate = DateTime.UtcNow;
-            fee.PaymentMethod = request.Method;
-
-            if (fee.PaidAmount >= fee.Amount)
-                fee.Status = "Paid";
-            else if (fee.PaidAmount > 0)
-                fee.Status = "Partially Paid";
-
-            await db.SaveChangesAsync();
-            await audit.LogAsync("UPDATE", "Fee", id.ToString(), $"Payment of {request.Amount} received.");
-            return Results.Ok(fee);
+            var updated = await feeService.ProcessPaymentAsync(id, request);
+            return updated is null ? Results.NotFound() : Results.Ok(updated);
         })
         .WithName("ProcessPayment");
 
@@ -65,4 +34,3 @@ public static class FeeEndpoints
     }
 }
 
-public record PaymentRequest(double Amount, string Method);

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Book as BookIcon, User, Clock, Info } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
-import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/useToast';
 import GenericTable, { type Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface BookType {
   id: number;

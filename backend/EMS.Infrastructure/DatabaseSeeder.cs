@@ -42,8 +42,8 @@ public class DatabaseSeeder : IDatabaseSeeder
         if (!_dbContext.Staff.Any())
         {
             _dbContext.Staff.AddRange(
-                new Staff { Name = "Dr. Robert Williams", Subject = "Mathematics", Email = "r.williams@school.edu", Phone = "+1 555-1001", Qualification = "PhD in Mathematics", Experience = "15 years", Classes = "Grade 1, Grade 2", Status = "Active", DateOfJoining = new DateTime(2010, 8, 15), Role = "Teacher" },
-                new Staff { Name = "Ms. Jennifer Clark", Subject = "English Literature", Email = "j.clark@school.edu", Phone = "+1 555-1002", Qualification = "MA in English", Experience = "10 years", Classes = "Grade 1", Status = "Active", DateOfJoining = new DateTime(2015, 7, 20), Role = "Teacher" }
+                new Staff { Name = "Dr. Robert Williams", Subject = "Mathematics", Email = "r.williams@school.edu", Phone = "+1 555-1001", Qualification = "PhD in Mathematics", Experience = "15 years", Classes = "Grade 1, Grade 2", Status = "Active", DateOfJoining = UtcDate(2010, 8, 15), Role = "Teacher" },
+                new Staff { Name = "Ms. Jennifer Clark", Subject = "English Literature", Email = "j.clark@school.edu", Phone = "+1 555-1002", Qualification = "MA in English", Experience = "10 years", Classes = "Grade 1", Status = "Active", DateOfJoining = UtcDate(2015, 7, 20), Role = "Teacher" }
             );
             _dbContext.SaveChanges();
         }
@@ -58,7 +58,7 @@ public class DatabaseSeeder : IDatabaseSeeder
                     AdmissionNumber = "S1001",
                     ClassName = "Grade 1",
                     Section = "A",
-                    DateOfBirth = new DateTime(2018, 4, 12),
+                    DateOfBirth = UtcDate(2018, 4, 12),
                     Gender = "Female"
                 },
                 new Student
@@ -68,7 +68,7 @@ public class DatabaseSeeder : IDatabaseSeeder
                     AdmissionNumber = "S1002",
                     ClassName = "Grade 2",
                     Section = "B",
-                    DateOfBirth = new DateTime(2017, 9, 3),
+                    DateOfBirth = UtcDate(2017, 9, 3),
                     Gender = "Male"
                 });
             _dbContext.SaveChanges();
@@ -89,8 +89,8 @@ public class DatabaseSeeder : IDatabaseSeeder
         if (!_dbContext.Exams.Any())
         {
             _dbContext.Exams.AddRange(
-                new Exam { Title = "Mid-term Examination 2025", Type = "Mid-term", StartDate = new DateTime(2025, 12, 1), EndDate = new DateTime(2025, 12, 15), Status = "Scheduled" },
-                new Exam { Title = "Unit Test - I", Type = "Unit Test", StartDate = new DateTime(2025, 11, 20), EndDate = new DateTime(2025, 11, 25), Status = "Completed" }
+                new Exam { Title = "Mid-term Examination 2025", Type = "Mid-term", StartDate = UtcDate(2025, 12, 1), EndDate = UtcDate(2025, 12, 15), Status = "Scheduled" },
+                new Exam { Title = "Unit Test - I", Type = "Unit Test", StartDate = UtcDate(2025, 11, 20), EndDate = UtcDate(2025, 11, 25), Status = "Completed" }
             );
             _dbContext.SaveChanges();
 
@@ -153,13 +153,16 @@ public class DatabaseSeeder : IDatabaseSeeder
         if (!_dbContext.Events.Any())
         {
             _dbContext.Events.AddRange(
-                new Event { Title = "Annual Sports Day", Description = "Inter-house sports competitions", StartDate = DateTime.UtcNow.AddDays(15), EndDate = DateTime.UtcNow.AddDays(15).AddHours(8), Location = "Main Sports Ground", Type = "Sports" },
-                new Event { Title = "Parent-Teacher Meeting", Description = "Discuss student progress and results", StartDate = DateTime.UtcNow.AddDays(5), EndDate = DateTime.UtcNow.AddDays(5).AddHours(4), Location = "Auditorium", Type = "Meeting" },
-                new Event { Title = "Winter Holiday", Description = "School closed for winter break", StartDate = DateTime.UtcNow.AddDays(25), EndDate = DateTime.UtcNow.AddDays(35), Location = "N/A", Type = "Holiday" }
+                new Event { Title = "Annual Sports Day", Description = "Inter-house sports competitions", StartDate = DateTime.UtcNow.AddDays(15), EndDate = DateTime.UtcNow.AddDays(15).AddHours(8), Location = "Main Sports Ground", Type = "Sports", OrganizedBy = "", IsActive = true },
+                new Event { Title = "Parent-Teacher Meeting", Description = "Discuss student progress and results", StartDate = DateTime.UtcNow.AddDays(5), EndDate = DateTime.UtcNow.AddDays(5).AddHours(4), Location = "Auditorium", Type = "Meeting", OrganizedBy = "", IsActive = true },
+                new Event { Title = "Winter Holiday", Description = "School closed for winter break", StartDate = DateTime.UtcNow.AddDays(25), EndDate = DateTime.UtcNow.AddDays(35), Location = "N/A", Type = "Holiday", OrganizedBy = "" , IsActive = true}
             );
             _dbContext.SaveChanges();
         }
     }
+
+    private static DateTime UtcDate(int year, int month, int day) =>
+        DateTime.SpecifyKind(new DateTime(year, month, day), DateTimeKind.Utc);
 }
 
 public interface IDatabaseSeeder

@@ -1,6 +1,5 @@
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
 
@@ -12,59 +11,29 @@ public static class TimetableEndpoints
             .WithTags("Timetable")
             .RequireAuthorization("StaffOnly");
 
-        timetableGroup.MapGet("", async (IApplicationDbContext db) =>
-            await db.TimetableEntries.AsNoTracking().ToListAsync())
+        timetableGroup.MapGet("", async (ITimetableService timetableService) =>
+            await timetableService.GetAllAsync())
             .WithName("GetTimetable");
 
-        timetableGroup.MapGet("/{className}", async (string className, IApplicationDbContext db) =>
-            await db.TimetableEntries
-                .AsNoTracking()
-                .Where(t => t.ClassName == className)
-                .OrderBy(t => t.DayOfWeek)
-                .ThenBy(t => t.StartTime)
-                .ToListAsync())
+        timetableGroup.MapGet("/{className}", async (string className, ITimetableService timetableService) =>
+            await timetableService.GetByClassAsync(className))
             .WithName("GetTimetableByClass");
 
-        timetableGroup.MapPost("", async (TimetableEntry entry, IApplicationDbContext db, IAuditService audit) =>
+        timetableGroup.MapPost("", async (TimetableEntry entry, ITimetableService timetableService) =>
         {
-            db.TimetableEntries.Add(entry);
-            await db.SaveChangesAsync();
-            await audit.LogAsync("CREATE", "Timetable", entry.Id.ToString(), $"Timetable entry for {entry.ClassName} - {entry.SubjectName} created.");
-            return Results.Created($"/api/timetable/{entry.Id}", entry);
+            var created = await timetableService.CreateAsync(entry);
+            return Results.Created($"/api/timetable/{created.Id}", created);
         })
         .RequireAuthorization("AdminOnly")
         .WithName("CreateTimetableEntry");
 
-        timetableGroup.MapPut("/{id:int}", async (int id, TimetableEntry update, IApplicationDbContext db, IAuditService audit) =>
-        {
-            var existing = await db.TimetableEntries.FindAsync(id);
-            if (existing is null) return Results.NotFound();
-
-            existing.ClassName = update.ClassName;
-            existing.SubjectName = update.SubjectName;
-            existing.TeacherName = update.TeacherName;
-            existing.DayOfWeek = update.DayOfWeek;
-            existing.StartTime = update.StartTime;
-            existing.EndTime = update.EndTime;
-            existing.Room = update.Room;
-
-            await db.SaveChangesAsync();
-            await audit.LogAsync("UPDATE", "Timetable", id.ToString(), "Timetable entry updated.");
-            return Results.NoContent();
-        })
+        timetableGroup.MapPut("/{id:int}", async (int id, TimetableEntry update, ITimetableService timetableService) =>
+            await timetableService.UpdateAsync(id, update) ? Results.NoContent() : Results.NotFound())
         .RequireAuthorization("AdminOnly")
         .WithName("UpdateTimetableEntry");
 
-        timetableGroup.MapDelete("/{id:int}", async (int id, IApplicationDbContext db, IAuditService audit) =>
-        {
-            var existing = await db.TimetableEntries.FindAsync(id);
-            if (existing is null) return Results.NotFound();
-
-            db.TimetableEntries.Remove(existing);
-            await db.SaveChangesAsync();
-            await audit.LogAsync("DELETE", "Timetable", id.ToString(), "Timetable entry deleted.");
-            return Results.NoContent();
-        })
+        timetableGroup.MapDelete("/{id:int}", async (int id, ITimetableService timetableService) =>
+            await timetableService.DeleteAsync(id) ? Results.NoContent() : Results.NotFound())
         .RequireAuthorization("AdminOnly")
         .WithName("DeleteTimetableEntry");
 
