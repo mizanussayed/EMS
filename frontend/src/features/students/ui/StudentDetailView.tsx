@@ -3,23 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Edit, User, Phone, Calendar, BookOpen, CheckCircle, XCircle, Clock, FileText, CreditCard, StickyNote, FolderOpen, IdCard, ChevronRight, AlertCircle } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { Student } from '../model/student.types';
 
-interface Student {
-  id: number;
-  firstName: string;
-  lastName: string;
-  admissionNumber?: string;
-  className?: string;
-  section?: string;
-  gender?: string;
-  dateOfBirth?: string;
-  active: boolean;
-  phone?: string;
-  email?: string;
-  address?: string;
-  parent?: string;
-  parentPhone?: string;
-}
 
 interface AttendanceRecord {
   date: string;
@@ -31,7 +16,12 @@ type Tab = 'details' | 'attendance' | 'notes' | 'idcard' | 'documents';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = { Present: 'bg-green-50 text-green-600 border border-green-100', Absent: 'bg-red-50 text-red-600 border border-red-100', Late: 'bg-orange-50 text-orange-600 border border-orange-100', Excused: 'bg-blue-50 text-blue-600 border border-blue-100' };
+  const map: Record<string, string> = { 
+    Present: 'bg-green-50 text-green-600 border border-green-100', 
+    Absent: 'bg-red-50 text-red-600 border border-red-100',
+    Late: 'bg-orange-50 text-orange-600 border border-orange-100', 
+    Excused: 'bg-blue-50 text-blue-600 border border-blue-100'
+   };
   return <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${map[status] ?? 'bg-gray-50 text-gray-500'}`}>{status}</span>;
 }
 
@@ -82,13 +72,17 @@ export default function StudentDetailView() {
   useEffect(() => { if (activeTab === 'attendance') fetchAttendance(); }, [activeTab, fetchAttendance]);
 
   if (loading) {
-    return <div className="p-6 flex items-center justify-center min-h-[400px]"><div className="flex flex-col items-center gap-4"><div className="w-12 h-12 border-4 border-[#2D6CDF] border-t-transparent rounded-full animate-spin" /><p className="text-gray-500 font-medium">Loading student profile...</p></div></div>;
+    return <div className="p-6 flex items-center justify-center min-h-[400px]"><div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#2D6CDF] border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-500 font-medium">Loading student profile...</p>
+         </div>
+      </div>;
   }
 
   if (!student) return null;
 
-  const fullName = `${student.firstName} ${student.lastName}`.trim();
-  const initials = student.firstName.charAt(0) + (student.lastName?.charAt(0) ?? '');
+  const fullName = `${student.name}`.trim();
+  const initials = student.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
   const presentCount = attendance.filter((record) => record.status === 'Present').length;
   const absentCount = attendance.filter((record) => record.status === 'Absent').length;
   const lateCount = attendance.filter((record) => record.status === 'Late').length;
@@ -112,8 +106,10 @@ export default function StudentDetailView() {
           <span className="text-gray-900 font-bold">{fullName}</span>
         </div>
         <div className="flex gap-3">
-          {auth?.role === 'admin' && <button onClick={() => navigate('/students')} className="flex items-center gap-2 px-5 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all shadow-lg shadow-[#2D6CDF]/20 active:scale-95"><Edit className="w-4 h-4" />Edit Student</button>}
-          <button onClick={() => navigate('/students')} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all shadow-sm active:scale-95"><ArrowLeft className="w-4 h-4" />Back to List</button>
+          {auth?.role === 'admin' && <button onClick={() => navigate('/students')} className="flex items-center gap-2 px-5 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all shadow-lg shadow-[#2D6CDF]/20 active:scale-95">
+            <Edit className="w-4 h-4" />Edit Student</button>}
+          <button onClick={() => navigate('/students')} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all shadow-sm active:scale-95">
+            <ArrowLeft className="w-4 h-4" />Back to List</button>
         </div>
       </div>
 
@@ -126,7 +122,7 @@ export default function StudentDetailView() {
               <div className="text-center">
                 <p className="font-black text-gray-900 text-lg leading-tight">{fullName}</p>
                 <p className="text-gray-400 text-sm font-medium">ID: {student.id}</p>
-                <span className={`inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${student.active ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>{student.active ? 'Active' : 'Inactive'}</span>
+                <span className={`inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${student.status === 'Active' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>{student.status}</span>
               </div>
             </div>
 

@@ -8,7 +8,7 @@ public class Student
     public string? AdmissionNumber { get; set; }
     public string? ClassName { get; set; }
     public string? Section { get; set; }
-    public DateTime DateOfBirth { get; set; }
+    public DateTime DateOfBirth { get; set; } = DateTime.UtcNow;
     public string? Gender { get; set; }
     public bool Active { get; set; } = true;
 }

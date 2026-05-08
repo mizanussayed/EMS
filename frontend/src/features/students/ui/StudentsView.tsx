@@ -1,46 +1,29 @@
-import { ChangeEvent, useEffect, useRef, useState, useCallback } from 'react';
+import { ChangeEvent, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Phone, BookOpen, User, Calendar, MapPin, Upload, Download, FileText, Search, Filter, X } from 'lucide-react';
-import { formatDateForInput, formatDateForAPI, formatDateForDisplay } from '@/utils/dateUtils';
-import type { Student } from '../model/student.types';
+import { formatDateForDisplay } from '@/utils/dateUtils';
+import type {Student, StudentInput } from '../model/student.types';
 import GenericForm, { FormField } from '@/components/GenericForm';
-import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useConfirm, useToast } from '@/hooks/useToast';
 import GenericTable, { Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { useCreateStudentMutation, useUpdateStudentMutation, useDeleteStudentMutation, useStudents } from '../hooks/useStudents';
 
-interface ApiStudent {
-  id: number;
-  firstName: string;
-  lastName: string;
-  admissionNumber?: string;
-  className?: string;
-  section?: string;
-  gender?: string;
-  dateOfBirth?: string;
-  active: boolean;
-}
-
-const mapStudentFromApi = (student: ApiStudent): Student => ({
-  id: student.id,
-  rollNo: student.admissionNumber ?? `STU-${student.id}`,
-  name: `${student.firstName} ${student.lastName}`.trim(),
-  className: student.className ?? 'Unassigned',
-  section: student.section ?? '',
+const initialFormData: StudentInput = {
+  firstName: '',
+  lastName: '',
+  admissionNumber: '',
+  className: '',
+  section: '',
+  gender: '',
+  dateOfBirth: null,
   email: '',
   phone: '',
-  parent: '',
-  parentPhone: '',
-  dateOfBirth: student.dateOfBirth ?? '',
-  admissionDate: '',
-  status: student.active ? 'Active' : 'Inactive',
-  attendance: '-',
-  admissionNumber: student.admissionNumber ?? '',
-  gender: student.gender ?? '',
-});
+}
+
 
 const formFields: FormField[] = [
   { name: 'firstName', label: 'First Name', type: 'text', placeholder: 'John', required: true },
@@ -58,67 +41,66 @@ const formFields: FormField[] = [
 ];
 
 export default function StudentsView() {
-  const api = useApi();
   const navigate = useNavigate();
   const { auth } = useAuth();
-  const { toasts, remove, success, error } = useToast();
+  const { toasts, remove, success, error: showError } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('All Classes');
   const [filterSection, setFilterSection] = useState('All Sections');
   const [filterShift, setFilterShift] = useState('All Shifts');
   const [filterBadge, setFilterBadge] = useState('All Badges');
-  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const createMutation = useCreateStudentMutation();
+  const updateMutation = useUpdateStudentMutation();
+  const deleteMutation = useDeleteStudentMutation();
+  const [formData, setFormData] = useState<StudentInput>(initialFormData);
+  const { data = [], isLoading, error } = useStudents();
 
-  const fetchStudents = useCallback(async () => {
-    setLoading(true);
+  const resetForm = () => {
+    setSelectedStudent(null);
+    setFormData(initialFormData);
+  };
+
+  const handleSubmit = async (payload: StudentInput) => {
     try {
-      const data = await api.get('/students');
-      setStudents(data.map(mapStudentFromApi));
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
-
-  useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
-
-  const handleSubmit = async (formData: any) => {
-    try {
-      const payload = { ...formData, dateOfBirth: formatDateForAPI(formData.dateOfBirth) };
-      if (modalMode === 'add') {
-        await api.post('/students', payload);
+      if (selectedStudent) {
+        await updateMutation.mutateAsync({ id: selectedStudent.id, payload });
+        success('Student updated successfully.');
       } else {
-        await api.put(`/students/${selectedStudent?.id}`, payload);
+        await createMutation.mutateAsync(payload);
+        success('Student saved successfully.');
       }
-      await fetchStudents();
-      setShowModal(false);
-      success(modalMode === 'add' ? 'Student registered successfully.' : 'Student updated successfully.');
-    } catch (err: any) {
-      error(err.message);
+
+      resetForm();
+    } catch (mutationError) {
+      showError(mutationError instanceof Error ? mutationError.message : 'Unable to save student.');
     }
   };
 
-  const handleDelete = async (student: Student) => {
-    const ok = await confirm(`This will permanently remove ${student.name} from the system.`, 'Delete Student?');
-    if (!ok) return;
+
+  const handleDelete = async (item: Student) => {
+    const confirmed = await confirm(`This will permanently remove ${item.firstName} ${item.lastName} from the system.`, 'Delete Student?');
+    if (!confirmed) {
+      return;
+    }
+
     try {
-      await api.delete(`/students/${student.id}`);
-      await fetchStudents();
+      await deleteMutation.mutateAsync(item.id);
       success('Student deleted successfully.');
-    } catch (err: any) {
-      error(err.message);
+      if (selectedStudent?.id === item.id) {
+        resetForm();
+      }
+    } catch (mutationError) {
+      showError(mutationError instanceof Error ? mutationError.message : 'Unable to delete student.');
     }
   };
+
 
   const escapeCsv = (value: string | number | undefined) => {
     const text = String(value ?? '');
@@ -140,7 +122,7 @@ export default function StudentsView() {
   const handleExportCsv = () => {
     const csv = [
       ['Admission Number', 'Name', 'Class', 'Section', 'Gender', 'Date of Birth', 'Status'],
-      ...filteredStudents.map((student) => [student.rollNo, student.name, student.className, student.section ?? '', student.gender ?? '', student.dateOfBirth ?? '', student.status]),
+      ...filteredStudents.map((student) => [student.rollNo, `${student.firstName} ${student.lastName}`, student.className, student.section ?? '', student.gender ?? '', student.dateOfBirth ?? '', student.status]),
     ].map((row) => row.map(escapeCsv).join(',')).join('\n');
 
     downloadFile('students.csv', csv, 'text/csv;charset=utf-8');
@@ -151,7 +133,7 @@ export default function StudentsView() {
     const rows = filteredStudents.map((student) => `
           <tr>
             <td>${student.rollNo}</td>
-            <td>${student.name}</td>
+            <td>${`${student.firstName} ${student.lastName}`}</td>
             <td>${student.className}</td>
             <td>${student.section ?? ''}</td>
             <td>${student.gender ?? ''}</td>
@@ -160,7 +142,7 @@ export default function StudentsView() {
 
     const printWindow = window.open('', '_blank', 'width=1000,height=800');
     if (!printWindow) {
-      error('Popup blocked. Please allow popups to export PDF.');
+      showError('Popup blocked. Please allow popups to export PDF.');
       return;
     }
 
@@ -235,7 +217,7 @@ export default function StudentsView() {
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
       if (lines.length < 2) {
-        error('CSV file must include a header row and at least one student.');
+        showError('CSV file must include a header row and at least one student.');
         return;
       }
 
@@ -265,27 +247,45 @@ export default function StudentsView() {
           continue;
         }
 
-        await api.post('/students', payload);
+        await createMutation.mutateAsync(payload);
         imported += 1;
       }
 
-      await fetchStudents();
       success(`${imported} student${imported === 1 ? '' : 's'} imported.`);
     } catch (err: any) {
-      error(err.message || 'Unable to import students.');
+      showError(err.message || 'Unable to import students.');
     }
   };
 
+  const handleEdit = (student: Student) => {
+    setSelectedStudent(student);
+    setFormData({
+      firstName: student.firstName,
+      lastName: student.lastName,
+      admissionNumber: student.admissionNumber ?? student.rollNo,
+      className: student.className,
+      section: student.section ?? '',
+      gender: student.gender ?? '',
+      dateOfBirth: student.dateOfBirth ?? null,
+      email: student.email ?? '',
+      phone: student.phone ?? '',
+      parent: student.parent ?? '',
+      parentPhone: student.parentPhone ?? '',
+      address: student.address ?? '',
+      active: student.status === 'Active',
+    });
+  };
+
   const columns: Column<Student>[] = [
-    { header: 'Student Info', accessor: (student) => <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">{student.name.charAt(0)}</div><div><div className="font-bold text-gray-900">{student.name}</div><div className="text-xs text-gray-400">ID: {student.rollNo}</div></div></div> },
+    { header: 'Student Info', accessor: (student) => <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">{student.firstName.charAt(0)}</div><div><div className="font-bold text-gray-900">{`${student.firstName} ${student.lastName}`}</div><div className="text-xs text-gray-400">ID: {student.rollNo}</div></div></div> },
     { header: 'Class & Section', accessor: (student) => <div><span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-bold mr-1">{student.className}</span>{student.section && <span className="px-2 py-1 bg-teal-50 text-teal-600 rounded text-xs font-bold">{student.section}</span>}</div> },
     { header: 'Shift', accessor: () => <span className="px-2 py-1 bg-amber-50 text-amber-600 rounded text-xs font-bold">Day</span> },
     { header: 'Badge', accessor: () => <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-xs font-bold">Resident</span> },
     { header: 'Contact', accessor: (student) => <div className="space-y-1"><div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium"><Phone className="w-3 h-3 text-gray-400" /><span>{student.phone || student.parentPhone || 'N/A'}</span></div></div> },
   ];
 
-  const filteredStudents = students.filter((student) => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) || student.rollNo.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredStudents = data.filter((student) => {
+    const matchesSearch = student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) || student.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = filterClass === 'All Classes' || student.className === filterClass;
     const matchesSection = filterSection === 'All Sections' || student.section === filterSection;
     return matchesSearch && matchesClass && matchesSection;
@@ -336,14 +336,20 @@ export default function StudentsView() {
   );
 
   const stats = [
-    { label: 'Total Students', value: students.length },
-    { label: 'Active', value: students.filter((student) => student.status === 'Active').length, color: 'text-green-600' },
-    { label: 'Inactive', value: students.filter((student) => student.status === 'Inactive').length, color: 'text-red-600' },
+    { label: 'Total Students', value: data.length },
+    { label: 'Active', value: data.filter((student) => student.status === 'Active').length, color: 'text-green-600' },
+    { label: 'Inactive', value: data.filter((student) => student.status === 'Inactive').length, color: 'text-red-600' },
     { label: 'Avg Attendance', value: '94%', color: 'text-blue-600' },
   ];
 
   return (
     <div className="p-6">
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error instanceof Error ? error.message : 'Unable to load students.'}
+        </div>
+      )}
+
       <GenericTable
         title="Student Management"
         description="View and manage student records, admissions and information"
@@ -357,25 +363,30 @@ export default function StudentsView() {
         onAdd={() => { setModalMode('add'); setSelectedStudent(null); setShowModal(true); }}
         addLabel="Add Student"
         onView={(student) => navigate(`/students/${student.id}`)}
-        onEdit={(student) => { setSelectedStudent(student); setModalMode('edit'); setShowModal(true); }}
+        onEdit={(student) => { handleEdit(student); setModalMode('edit'); setShowModal(true); }}
         onDelete={handleDelete}
-        isLoading={loading && students.length === 0}
+        isLoading={isLoading && data.length === 0}
         canAdd={auth?.role.toLowerCase() === 'admin'}
         canEdit={auth?.role.toLowerCase() === 'admin'}
         canDelete={auth?.role.toLowerCase() === 'admin'}
       />
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={modalMode === 'add' ? 'Register New Student' : 'Edit Student Details'}>
-        <GenericForm fields={formFields} initialData={selectedStudent ? { firstName: selectedStudent.name.split(' ')[0], lastName: selectedStudent.name.split(' ').slice(1).join(' '), ...selectedStudent, dateOfBirth: formatDateForInput(selectedStudent.dateOfBirth) } : {}} onSubmit={handleSubmit} onCancel={() => setShowModal(false)} submitLabel={modalMode === 'add' ? 'Register Student' : 'Update Student'} />
+        <GenericForm fields={formFields} 
+          initialData={formData}
+          onSubmit={handleSubmit} 
+          onCancel={() => setShowModal(false)} 
+          submitLabel={modalMode === 'add' ? 'Register Student' : 'Update Student'} 
+          />
       </Modal>
 
       <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Student Profile Details">
         {selectedStudent && (
           <div className="space-y-8">
             <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-              <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">{selectedStudent.name.charAt(0)}</div>
+              <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">{selectedStudent.firstName.charAt(0)}</div>
               <div>
-                <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedStudent.name}</h3>
+                <h3 className="text-gray-900 font-bold text-2xl mb-1">{`${selectedStudent.firstName} ${selectedStudent.lastName}`}</h3>
                 <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedStudent.status} Student</p>
               </div>
             </div>

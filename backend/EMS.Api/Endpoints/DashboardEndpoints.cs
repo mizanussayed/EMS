@@ -12,6 +12,7 @@ public static class DashboardEndpoints
             .WithTags("Dashboard")
             .RequireAuthorization("StaffOnly");
 
+
         group.MapGet("", async (IApplicationDbContext db) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);

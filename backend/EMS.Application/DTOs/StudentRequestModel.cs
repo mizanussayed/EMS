@@ -8,6 +8,6 @@ namespace EMS.Application.DTOs
         public string ClassName { get; set; } = string.Empty;
         public string Section { get; set; } = string.Empty;
         public string Gender { get; set; } = string.Empty;
-        public DateTime DateOfBirth { get; set; }
+        public DateTime DateOfBirth { get; set; } = DateTime.UtcNow;
     }
 }
