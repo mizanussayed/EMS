@@ -51,7 +51,7 @@ internal sealed class LibraryService(IApplicationDbContext db, IAuditService aud
             return null;
         }
 
-        issue.ReturnDate = DateTime.UtcNow;
+        issue.ReturnDate = DateOnly.FromDateTime(DateTime.UtcNow);
         issue.Status = "Returned";
         issue.Book.AvailableQuantity++;
 

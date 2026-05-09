@@ -11,17 +11,18 @@ internal sealed class FeeService(IApplicationDbContext db, IAuditService audit) 
     {
         return await db.Fees
             .AsNoTracking()
+            .LeftJoin(db.Students, f => f.StudentId, s => s.Id, (f, s) => new { Fee = f, Student = s })
             .Select(f => new FeeDto(
-                f.Id,
-                f.StudentId,
-                f.Student.FirstName + " " + f.Student.LastName,
-                f.Student.ClassName,
-                f.Month,
-                f.Amount,
-                f.PaidAmount,
-                f.Status,
-                f.PaymentDate,
-                f.PaymentMethod))
+                f.Fee.Id,
+                f.Fee.StudentId,
+                f.Student!.Name,
+                f.Student.ClassId,
+                f.Fee.Month,
+                f.Fee.Amount,
+                f.Fee.PaidAmount,
+                f.Fee.Status,
+                f.Fee.PaymentDate.ToDateTime(new TimeOnly(0, 0)),
+                f.Fee.PaymentMethod))
             .ToListAsync(cancellationToken);
     }
 
@@ -35,38 +36,42 @@ internal sealed class FeeService(IApplicationDbContext db, IAuditService audit) 
 
     public async Task<FeeDto?> ProcessPaymentAsync(int id, FeePaymentRequest request, CancellationToken cancellationToken = default)
     {
-        var fee = await db.Fees.Include(f => f.Student).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+
+        var fee = await db.Fees
+            .Join(db.Students, f => f.StudentId, s => s.Id, (f, s) => new { Fee = f, Student = s })
+            .FirstOrDefaultAsync(cancellationToken);
+
         if (fee is null)
         {
             return null;
         }
 
-        fee.PaidAmount += request.Amount;
-        fee.PaymentDate = DateTime.UtcNow;
-        fee.PaymentMethod = request.Method;
+        fee.Fee.PaidAmount += request.Amount;
+        fee.Fee.PaymentMethod = request.Method;
+        fee.Fee.PaymentDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        if (fee.PaidAmount >= fee.Amount)
+        if (fee.Fee.PaidAmount >= fee.Fee.Amount)
         {
-            fee.Status = "Paid";
+            fee.Fee.Status = "Paid";
         }
-        else if (fee.PaidAmount > 0)
+        else if (fee.Fee.PaidAmount > 0)
         {
-            fee.Status = "Partially Paid";
+            fee.Fee.Status = "Partially Paid";
         }
 
         await db.SaveChangesAsync(cancellationToken);
         await audit.LogAsync("UPDATE", "Fee", id.ToString(), $"Payment of {request.Amount} received.");
 
         return new FeeDto(
-            fee.Id,
-            fee.StudentId,
-            fee.Student.FirstName + " " + fee.Student.LastName,
-            fee.Student.ClassName,
-            fee.Month,
-            fee.Amount,
-            fee.PaidAmount,
-            fee.Status,
-            fee.PaymentDate,
-            fee.PaymentMethod);
+            fee.Fee.Id,
+            fee.Fee.StudentId,
+            fee.Student.Name,
+            fee.Student.ClassId,
+            fee.Fee.Month,
+            fee.Fee.Amount,
+            fee.Fee.PaidAmount,
+            fee.Fee.Status,
+            fee.Fee.PaymentDate.ToDateTime(new TimeOnly(0, 0)),
+            fee.Fee.PaymentMethod);
     }
 }

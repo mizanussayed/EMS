@@ -13,31 +13,36 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { useCreateStudentMutation, useUpdateStudentMutation, useDeleteStudentMutation, useStudents } from '../hooks/useStudents';
 
 const initialFormData: StudentInput = {
-  firstName: '',
-  lastName: '',
+  classRollNo: '',
   admissionNumber: '',
-  className: '',
-  section: '',
-  gender: '',
-  dateOfBirth: null,
+  name: '',
+  classId: 0,
+  sectionId: 0,
   email: '',
-  phone: '',
-}
+  parent: '',
+  parentPhone: '',
+  dateOfBirth: '',
+  admissionDate: '',
+  address: '',
+  gender: '',
+  isActive: true,
+};
 
 
 const formFields: FormField[] = [
-  { name: 'firstName', label: 'First Name', type: 'text', placeholder: 'John', required: true },
-  { name: 'lastName', label: 'Last Name', type: 'text', placeholder: 'Doe', required: true },
-  { name: 'admissionNumber', label: 'Roll/Admission No', type: 'text', placeholder: 'STU-001' },
-  { name: 'gender', label: 'Gender', type: 'select', options: [{ label: 'Male', value: 'Male' }, { label: 'Female', value: 'Female' }] },
-  { name: 'className', label: 'Class', type: 'text', placeholder: 'Grade 10A', required: true },
-  { name: 'section', label: 'Section', type: 'text', placeholder: 'A' },
-  { name: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
-  { name: 'email', label: 'Email Address', type: 'email' },
-  { name: 'phone', label: 'Student Phone', type: 'tel' },
-  { name: 'parent', label: 'Parent Name', type: 'text' },
-  { name: 'parentPhone', label: 'Parent Phone', type: 'tel' },
-  { name: 'address', label: 'Address', type: 'textarea', colSpan: 2 },
+  {name: 'classRollNo', label: 'Class Roll No', type: 'text', placeholder: 'CRN-001', required: true },
+  {name: 'admissionNumber', label: 'Admission No', type: 'text', placeholder: 'ADM-001' },
+  {name: 'name', label: 'Full Name', type: 'text', placeholder: 'John Doe', required: true },
+  {name: 'classId', label: 'Class', type: 'select', options: [{ label: 'Grade 1', value: 1 }, { label: 'Grade 2', value: 2 }], required: true },
+  {name: 'sectionId', label: 'Section', type: 'select', options: [{ label: 'A', value: 1 }, { label: 'B', value: 2 }] },
+  {name: 'gender', label: 'Gender', type: 'select', options: [{ label: 'Male', value: 'Male' }, { label: 'Female', value: 'Female' }] },
+  {name: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
+  {name: 'admissionDate', label: 'Admission Date', type: 'date' },
+  {name: 'email', label: 'Email Address', type: 'email' },
+  {name: 'parent', label: 'Parent Name', type: 'text' },
+  {name: 'parentPhone', label: 'Parent Phone', type: 'tel' },
+  {name: 'address', label: 'Address', type: 'textarea', colSpan: 2 },
+  {name: 'isActive', label: 'Is Active', type: 'checkbox' }
 ];
 
 export default function StudentsView() {
@@ -85,7 +90,7 @@ export default function StudentsView() {
 
 
   const handleDelete = async (item: Student) => {
-    const confirmed = await confirm(`This will permanently remove ${item.firstName} ${item.lastName} from the system.`, 'Delete Student?');
+    const confirmed = await confirm(`This will permanently remove ${item.name} from the system.`, 'Delete Student?');
     if (!confirmed) {
       return;
     }
@@ -121,8 +126,23 @@ export default function StudentsView() {
 
   const handleExportCsv = () => {
     const csv = [
-      ['Admission Number', 'Name', 'Class', 'Section', 'Gender', 'Date of Birth', 'Status'],
-      ...filteredStudents.map((student) => [student.rollNo, `${student.firstName} ${student.lastName}`, student.className, student.section ?? '', student.gender ?? '', student.dateOfBirth ?? '', student.status]),
+      ['Class Roll No', 'Admission Number', 'Name', 'Gender', 'Class', 'Section', 'Email',
+       'Parent', 'Parent Phone', 'Date of Birth', 'Admission Date', 'Address', 'Active'],
+      ...filteredStudents.map((student) => [
+        student.classRollNo,
+        student.admissionNumber ?? '',
+        student.name,
+        student.gender ?? '',
+        student.className,
+        student.sectionName ?? '',
+        student.email ?? '',
+        student.parent ?? '',
+        student.parentPhone ?? '',
+        student.dateOfBirth ?? '',
+        student.admissionDate ?? '',
+        student.address ?? '',
+        student.isActive? 'Active' : 'Inactive',
+      ]),
     ].map((row) => row.map(escapeCsv).join(',')).join('\n');
 
     downloadFile('students.csv', csv, 'text/csv;charset=utf-8');
@@ -132,12 +152,18 @@ export default function StudentsView() {
   const handleExportPdf = () => {
     const rows = filteredStudents.map((student) => `
           <tr>
-            <td>${student.rollNo}</td>
-            <td>${`${student.firstName} ${student.lastName}`}</td>
-            <td>${student.className}</td>
-            <td>${student.section ?? ''}</td>
+            <td>${student.classRollNo}</td>
+            <td>${student.name}</td>
             <td>${student.gender ?? ''}</td>
-            <td>${student.status}</td>
+            <td>${student.className}</td>
+            <td>${student.sectionName ?? ''}</td>
+            <td>${student.email ?? ''}</td>
+            <td>${student.parent ?? ''}</td>
+            <td>${student.parentPhone ?? ''}</td>
+            <td>${formatDateForDisplay(student.dateOfBirth)}</td>
+            <td>${formatDateForDisplay(student.admissionDate)}</td>
+            <td>${student.address ?? ''}</td>
+            <td>${student.isActive ? 'Active' : 'Inactive'}</td>
           </tr>`).join('');
 
     const printWindow = window.open('', '_blank', 'width=1000,height=800');
@@ -163,11 +189,17 @@ export default function StudentsView() {
           <table>
             <thead>
               <tr>
-                <th>Admission Number</th>
+                <th>Class Roll No</th>
                 <th>Name</th>
+                <th>Gender</th>
                 <th>Class</th>
                 <th>Section</th>
-                <th>Gender</th>
+                <th>Email</th>
+                <th>Parent</th>
+                <th>Parent Phone</th>
+                <th>Date of Birth</th>
+                <th>Admission Date</th>
+                <th>Address</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -233,17 +265,22 @@ export default function StudentsView() {
         const fullName = value('name', 'studentname');
         const [firstNameFromFull, ...lastNameParts] = fullName.split(' ').filter(Boolean);
         const payload = {
-          firstName: value('firstname') || firstNameFromFull,
+          name: value('name') || firstNameFromFull,
           lastName: value('lastname') || lastNameParts.join(' ') || '-',
-          admissionNumber: value('admissionnumber', 'rollno', 'roll', 'id'),
-          className: value('classname', 'class'),
-          section: value('section'),
+          classRollNo: value('classrollno', 'rollno', 'roll', 'id'),
+          classId: parseInt(value('classid', 'class'), 10) || 0,
+          sectionId: parseInt(value('sectionid', 'section'), 10) || 0,
           gender: value('gender'),
-          dateOfBirth: value('dateofbirth', 'dob') || null,
-          active: value('status').toLowerCase() !== 'inactive',
+          email: value('email'),
+          parent: value('parent'),
+          parentPhone: value('parentphone') || '',
+          dateOfBirth: value('dateofbirth') || '',
+          admissionDate: value('admissiondate') || '',
+          address: value('address'),
+          isActive: value('status').toLowerCase() === 'active',
         };
 
-        if (!payload.firstName || !payload.className) {
+        if (!payload.name || !payload.classId) {
           continue;
         }
 
@@ -260,34 +297,48 @@ export default function StudentsView() {
   const handleEdit = (student: Student) => {
     setSelectedStudent(student);
     setFormData({
-      firstName: student.firstName,
-      lastName: student.lastName,
-      admissionNumber: student.admissionNumber ?? student.rollNo,
-      className: student.className,
-      section: student.section ?? '',
+      classRollNo: student.classRollNo,
+      name: student.name,
+      admissionNumber: student.admissionNumber ?? '',
+      classId: student.classId,
+      sectionId: student.sectionId,
       gender: student.gender ?? '',
-      dateOfBirth: student.dateOfBirth ?? null,
+      dateOfBirth: student.dateOfBirth ?? '',
       email: student.email ?? '',
-      phone: student.phone ?? '',
       parent: student.parent ?? '',
       parentPhone: student.parentPhone ?? '',
       address: student.address ?? '',
-      active: student.status === 'Active',
+      isActive: student.isActive,
     });
   };
 
   const columns: Column<Student>[] = [
-    { header: 'Student Info', accessor: (student) => <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">{student.firstName.charAt(0)}</div><div><div className="font-bold text-gray-900">{`${student.firstName} ${student.lastName}`}</div><div className="text-xs text-gray-400">ID: {student.rollNo}</div></div></div> },
-    { header: 'Class & Section', accessor: (student) => <div><span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-bold mr-1">{student.className}</span>{student.section && <span className="px-2 py-1 bg-teal-50 text-teal-600 rounded text-xs font-bold">{student.section}</span>}</div> },
+    { header: 'Student Info', accessor: (student) => <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">{student.name.charAt(0)}</div>
+        <div>
+          <div className="font-bold text-gray-900">{`${student.name}`}</div>
+          <div className="text-xs text-gray-400">ID: {student.classRollNo}</div>
+      </div>
+    </div> },
+    { header: 'Class & Section', accessor: (student) => <div>
+      <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-bold mr-1">{student.className}</span>
+      {student.sectionName && <span className="px-2 py-1 bg-teal-50 text-teal-600 rounded text-xs font-bold">{student.sectionName}</span>}
+      </div> 
+    },
     { header: 'Shift', accessor: () => <span className="px-2 py-1 bg-amber-50 text-amber-600 rounded text-xs font-bold">Day</span> },
     { header: 'Badge', accessor: () => <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-xs font-bold">Resident</span> },
-    { header: 'Contact', accessor: (student) => <div className="space-y-1"><div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium"><Phone className="w-3 h-3 text-gray-400" /><span>{student.phone || student.parentPhone || 'N/A'}</span></div></div> },
+    { header: 'Contact', accessor: (student) => <div className="space-y-1">
+      <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+      <Phone className="w-3 h-3 text-gray-400" /><span>{student.parentPhone || 'N/A'}</span>
+      </div>
+      </div> 
+    },
   ];
 
   const filteredStudents = data.filter((student) => {
-    const matchesSearch = student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) || student.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) || student.classRollNo?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = filterClass === 'All Classes' || student.className === filterClass;
-    const matchesSection = filterSection === 'All Sections' || student.section === filterSection;
+    const matchesSection = filterSection === 'All Sections' || student.sectionName === filterSection;
     return matchesSearch && matchesClass && matchesSection;
   });
 
@@ -337,8 +388,8 @@ export default function StudentsView() {
 
   const stats = [
     { label: 'Total Students', value: data.length },
-    { label: 'Active', value: data.filter((student) => student.status === 'Active').length, color: 'text-green-600' },
-    { label: 'Inactive', value: data.filter((student) => student.status === 'Inactive').length, color: 'text-red-600' },
+    { label: 'Active', value: data.filter((student) => student.isActive).length, color: 'text-green-600' },
+    { label: 'Inactive', value: data.filter((student) => !student.isActive).length, color: 'text-red-600' },
     { label: 'Avg Attendance', value: '94%', color: 'text-blue-600' },
   ];
 
@@ -384,21 +435,20 @@ export default function StudentsView() {
         {selectedStudent && (
           <div className="space-y-8">
             <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-              <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">{selectedStudent.firstName.charAt(0)}</div>
+              <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">{selectedStudent.name.charAt(0)}</div>
               <div>
-                <h3 className="text-gray-900 font-bold text-2xl mb-1">{`${selectedStudent.firstName} ${selectedStudent.lastName}`}</h3>
-                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedStudent.status} Student</p>
+                <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedStudent.name}</h3>
+                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedStudent.isActive ? 'Active' : 'Inactive'} Student</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
-                { icon: User, label: 'Admission No', value: selectedStudent.rollNo },
+                { icon: User, label: 'Admission No', value: selectedStudent.admissionNumber || 'N/A' },
                 { icon: BookOpen, label: 'Current Class', value: selectedStudent.className },
                 { icon: Calendar, label: 'Date of Birth', value: formatDateForDisplay(selectedStudent.dateOfBirth) },
                 { icon: User, label: 'Gender', value: selectedStudent.gender || 'N/A' },
                 { icon: Mail, label: 'Email Address', value: selectedStudent.email || 'N/A' },
-                { icon: Phone, label: 'Phone Number', value: selectedStudent.phone || 'N/A' },
                 { icon: User, label: 'Parent/Guardian', value: selectedStudent.parent || 'N/A' },
                 { icon: Phone, label: 'Parent Phone', value: selectedStudent.parentPhone || 'N/A' },
               ].map((item, index) => (

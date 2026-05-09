@@ -19,7 +19,7 @@ public static class DashboardEndpoints
 
             var studentCount = await db.Students.AsNoTracking().CountAsync();
             var classCount = await db.Students.AsNoTracking()
-                .Select(student => student.ClassName)
+                .Select(student => student.ClassId)
                 .Distinct()
                 .CountAsync();
             var attendanceToday = await db.Attendances.AsNoTracking()

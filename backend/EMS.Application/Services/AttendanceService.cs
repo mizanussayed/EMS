@@ -7,18 +7,18 @@ namespace EMS.Application.Services;
 
 internal sealed class AttendanceService(IApplicationDbContext db, IAuditService audit) : IAttendanceService
 {
-    public async Task<IReadOnlyList<AttendanceDto>> GetAttendanceByClassAsync(string className, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AttendanceDto>> GetAttendanceByClassAsync(int classId, CancellationToken cancellationToken = default)
     {
         return await db.Attendances
             .AsNoTracking()
-            .Where(a => a.Student.ClassName == className)
+            .Where(a => a.Student.ClassId == classId)
             .OrderByDescending(a => a.Date)
-            .ThenBy(a => a.Student.LastName)
+            .ThenBy(a => a.Student.Name)
             .Select(a => new AttendanceDto(
                 a.Id,
                 a.StudentId,
-                a.Student.FirstName + " " + a.Student.LastName,
-                a.Student.ClassName,
+                a.Student.Name,
+                a.Student.ClassId,
                 a.Date,
                 a.Status,
                 a.Notes))
@@ -47,7 +47,7 @@ internal sealed class AttendanceService(IApplicationDbContext db, IAuditService 
                 "UPDATE",
                 "Attendance",
                 existing.Id.ToString(),
-                $"Attendance updated for {student.FirstName} {student.LastName} on {existing.Date}.");
+                $"Attendance updated for {student.Name} on {existing.Date}.");
 
             return new AttendanceUpsertResult(AttendanceUpsertStatus.Updated, ToDto(existing, student), null);
         }
@@ -67,7 +67,7 @@ internal sealed class AttendanceService(IApplicationDbContext db, IAuditService 
             "CREATE",
             "Attendance",
             attendance.Id.ToString(),
-            $"Attendance recorded for {student.FirstName} {student.LastName} on {attendance.Date}.");
+            $"Attendance recorded for {student.Name} on {attendance.Date}.");
 
         return new AttendanceUpsertResult(AttendanceUpsertStatus.Created, ToDto(attendance, student), null);
     }
@@ -77,8 +77,8 @@ internal sealed class AttendanceService(IApplicationDbContext db, IAuditService 
         return new AttendanceDto(
             attendance.Id,
             attendance.StudentId,
-            $"{student.FirstName} {student.LastName}".Trim(),
-            student.ClassName,
+            student.Name,
+            student.ClassId,
             attendance.Date,
             attendance.Status,
             attendance.Notes);

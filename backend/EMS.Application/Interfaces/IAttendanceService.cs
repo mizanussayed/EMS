@@ -4,6 +4,6 @@ namespace EMS.Application.Interfaces;
 
 public interface IAttendanceService
 {
-    Task<IReadOnlyList<AttendanceDto>> GetAttendanceByClassAsync(string className, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AttendanceDto>> GetAttendanceByClassAsync(int classId, CancellationToken cancellationToken = default);
     Task<AttendanceUpsertResult> CreateOrUpdateAsync(AttendanceRequest request, CancellationToken cancellationToken = default);
 }

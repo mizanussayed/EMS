@@ -8,6 +8,7 @@ internal sealed class EventService(IApplicationDbContext db, IAuditService audit
 {
     public async Task<IReadOnlyList<Event>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        // Placeholder for future changes after date-only model conversion
         return await db.Events.AsNoTracking().OrderBy(e => e.StartDate).ToListAsync(cancellationToken);
     }
 

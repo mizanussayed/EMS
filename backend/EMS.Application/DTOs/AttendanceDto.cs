@@ -4,7 +4,7 @@ public record AttendanceDto(
     int Id,
     int StudentId,
     string StudentName,
-    string? ClassName,
+    int? ClassId,
     DateOnly Date,
     string Status,
     string? Notes);

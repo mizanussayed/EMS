@@ -4,7 +4,7 @@ public record FeeDto(
     int Id,
     int StudentId,
     string StudentName,
-    string? ClassName,
+    int ClassId,
     string Month,
     double Amount,
     double PaidAmount,
