@@ -13,6 +13,7 @@ internal sealed class ShiftService(IApplicationDbContext db, IAuditService audit
 
     public async Task<Shift> CreateAsync(Shift item, CancellationToken cancellationToken = default)
     {
+        item.Id = 0;
         db.Shifts.Add(item);
         await db.SaveChangesAsync(cancellationToken);
         await audit.LogAsync("CREATE", "Shift", item.Id.ToString(), $"Shift {item.Name} created.");

@@ -7,17 +7,63 @@ namespace EMS.Application.Services;
 
 internal sealed class StudentService(IApplicationDbContext db, IAuditService audit) : IStudentService
 {
-    public async Task<IReadOnlyList<Student>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<StudentResponseModel>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await db.Students.AsNoTracking().OrderBy(s => s.ClassId).ThenBy(s => s.SectionId).ToListAsync(cancellationToken);
+        return await db.Students
+                .AsNoTracking()
+                .OrderBy(s => s.ClassId)
+                .ThenBy(s => s.SectionId)
+                .LeftJoin(db.Classes, s => s.ClassId, c => c.Id, (s, c) => new { Student = s, Class = c })
+                .Select(s => new StudentResponseModel
+                {
+                    Id = s.Student.Id,
+                    ClassRollNo = s.Student.ClassRollNo,
+                    AdmissionNumber = s.Student.AdmissionNumber,
+                    Name = s.Student.Name,
+                    ClassId = s.Student.ClassId,
+                    SectionId = s.Student.SectionId,
+                    Email = s.Student.Email,
+                    Parent = s.Student.Parent,
+                    ParentPhone = s.Student.ParentPhone,
+                    DateOfBirth = s.Student.DateOfBirth,
+                    AdmissionDate = s.Student.AdmissionDate,
+                    Address = s.Student.Address,
+                    IsActive = s.Student.IsActive,
+                    ClassName = s.Class!.Name,
+                    SectionName = s.Student.SectionId == 1 ? "A" : "B",
+                    Gender = s.Student.Gender
+                })
+                .ToListAsync(cancellationToken);
     }
 
-    public async Task<Student?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<StudentResponseModel?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await db.Students.FindAsync([id], cancellationToken);
+        return await db.Students
+            .AsNoTracking()
+            .Where(s => s.Id == id)
+            .LeftJoin(db.Classes, s => s.ClassId, c => c.Id, (s, c) => new { Student = s, Class = c })
+            .Select(joined => new StudentResponseModel
+            {
+                Id = joined.Student.Id,
+                ClassRollNo = joined.Student.ClassRollNo,
+                AdmissionNumber = joined.Student.AdmissionNumber,
+                Name = joined.Student.Name,
+                ClassId = joined.Student.ClassId,
+                SectionId = joined.Student.SectionId,
+                Email = joined.Student.Email,
+                Parent = joined.Student.Parent,
+                ParentPhone = joined.Student.ParentPhone,
+                DateOfBirth = joined.Student.DateOfBirth,
+                AdmissionDate = joined.Student.AdmissionDate,
+                Address = joined.Student.Address,
+                IsActive = joined.Student.IsActive,
+                ClassName = joined.Class!.Name,
+                Gender = joined.Student.Gender
+            })
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<Student> CreateAsync(StudentRequestModel request, CancellationToken cancellationToken = default)
+    public async Task<StudentResponseModel?> CreateAsync(StudentRequestModel request, CancellationToken cancellationToken = default)
     {
         var student = new Student
         {
@@ -39,10 +85,10 @@ internal sealed class StudentService(IApplicationDbContext db, IAuditService aud
         db.Students.Add(student);
         await db.SaveChangesAsync(cancellationToken);
         await audit.LogAsync("CREATE", "Student", student.Id.ToString(), $"Student {student.Name} created.");
-        return student;
+        return await GetByIdAsync(student.Id, cancellationToken);
     }
 
-    public async Task<bool> UpdateAsync(int id, Student update, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(int id, StudentRequestModel update, CancellationToken cancellationToken = default)
     {
         var existing = await db.Students.FindAsync([id], cancellationToken);
         if (existing is null)
@@ -82,4 +128,5 @@ internal sealed class StudentService(IApplicationDbContext db, IAuditService aud
         await audit.LogAsync("DELETE", "Student", existing.Id.ToString(), $"Student {existing.Name} deleted.");
         return true;
     }
-}
+
+  }

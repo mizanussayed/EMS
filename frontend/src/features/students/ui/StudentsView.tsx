@@ -304,6 +304,7 @@ export default function StudentsView() {
       sectionId: student.sectionId,
       gender: student.gender ?? '',
       dateOfBirth: student.dateOfBirth ?? '',
+      admissionDate: student.admissionDate ?? '',
       email: student.email ?? '',
       parent: student.parent ?? '',
       parentPhone: student.parentPhone ?? '',
