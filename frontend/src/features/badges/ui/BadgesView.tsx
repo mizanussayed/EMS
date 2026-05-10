@@ -15,17 +15,18 @@ const formFields: FormField[] = [
 ];
 
 export default function BadgesView() {
-  const { data = [], isLoading } = useBadges();
+  const { data = [] } = useBadges();
   const createBadgeMutation = useCreateBadgeMutation();
   const updateBadgeMutation = useUpdateBadgeMutation();
   const deleteBadgeMutation = useDeleteBadgeMutation();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm] = useState('');
   const [selected, setSelected] = useState<StudentBadge | null>(null);
   const [formData, setFormData] = useState<Partial<StudentBadge>>({
     name: '',
     description: '',
+    color: 'green',
     isActive: true,
   });
 
@@ -33,7 +34,7 @@ export default function BadgesView() {
 
   const resetForm = () => {
     setSelected(null);
-    setFormData({ name: '', description: '', isActive: true });
+    setFormData({ name: '', description: '', color: 'green', isActive: true });
   };
 
   const handleSubmit = async (submittedFormData: any) => {
@@ -100,7 +101,7 @@ export default function BadgesView() {
                 <tr>
                   <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase">Name</th>
                   <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase">Description</th>
-                  <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase">Students</th>
+                  <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase">Color</th>
                   <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
                   <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase text-center">Actions</th>
                 </tr>
@@ -110,7 +111,7 @@ export default function BadgesView() {
                   <tr key={item.id} className="hover:bg-gray-50/50">
                     <td className="px-5 py-4 text-sm font-bold text-gray-900">{item.name}</td>
                     <td className="px-5 py-4 text-sm text-gray-600">{item.description || ''}</td>
-                    <td className="px-5 py-4 text-sm text-gray-600">{item.studentCount || 0}</td>
+                    <td className="px-5 py-4 text-sm text-gray-600">{item.color || ''}</td>
                     <td className="px-5 py-4">
                       <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold ${item.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                         {item.isActive ? 'Active' : 'Inactive'}

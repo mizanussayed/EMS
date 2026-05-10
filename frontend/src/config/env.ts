@@ -1,5 +1,5 @@
-const defaultApiUrl = 'http://localhost:5000/api';
-
+const defaultApiUrl = 'http://localhost:5001/api';
+const institutionName = import.meta.env.VITE_INSTITUTION_NAME?.trim() || 'EMS';
 function validateApiUrl(value: string): string {
   try {
     return new URL(value).toString().replace(/\/$/, '');
@@ -10,4 +10,5 @@ function validateApiUrl(value: string): string {
 
 export const env = {
   apiUrl: validateApiUrl(import.meta.env.VITE_API_URL?.trim() || defaultApiUrl),
+  institutionName,
 };

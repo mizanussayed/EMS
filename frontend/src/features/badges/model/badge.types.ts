@@ -1,7 +1,7 @@
 export interface StudentBadge {
   id: number;
   name: string;
-  studentCount: number;
+  color: string;
   description?: string;
   isActive: boolean;
 }

@@ -1,9 +1,8 @@
-import { ChangeEvent, useRef, useState } from 'react';
+import { ChangeEvent, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Phone, BookOpen, User, Calendar, MapPin, Upload, Download, FileText, Search, Filter, X } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/dateUtils';
-import type {Student, StudentInput } from '../model/student.types';
-import GenericForm, { FormField } from '@/components/GenericForm';
+import type { Student, StudentInput } from '../model/student.types';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useConfirm, useToast } from '@/hooks/useToast';
 import GenericTable, { Column } from '@/components/GenericTable';
@@ -11,39 +10,8 @@ import Modal from '@/components/Modal';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useCreateStudentMutation, useUpdateStudentMutation, useDeleteStudentMutation, useStudents } from '../hooks/useStudents';
-
-const initialFormData: StudentInput = {
-  classRollNo: '',
-  admissionNumber: '',
-  name: '',
-  classId: 0,
-  sectionId: 0,
-  email: '',
-  parent: '',
-  parentPhone: '',
-  dateOfBirth: '',
-  admissionDate: '',
-  address: '',
-  gender: '',
-  isActive: true,
-};
-
-
-const formFields: FormField[] = [
-  {name: 'classRollNo', label: 'Class Roll No', type: 'text', placeholder: 'CRN-001', required: true },
-  {name: 'admissionNumber', label: 'Admission No', type: 'text', placeholder: 'ADM-001' },
-  {name: 'name', label: 'Full Name', type: 'text', placeholder: 'John Doe', required: true },
-  {name: 'classId', label: 'Class', type: 'select', options: [{ label: 'Grade 1', value: 1 }, { label: 'Grade 2', value: 2 }], required: true },
-  {name: 'sectionId', label: 'Section', type: 'select', options: [{ label: 'A', value: 1 }, { label: 'B', value: 2 }] },
-  {name: 'gender', label: 'Gender', type: 'select', options: [{ label: 'Male', value: 'Male' }, { label: 'Female', value: 'Female' }] },
-  {name: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
-  {name: 'admissionDate', label: 'Admission Date', type: 'date' },
-  {name: 'email', label: 'Email Address', type: 'email' },
-  {name: 'parent', label: 'Parent Name', type: 'text' },
-  {name: 'parentPhone', label: 'Parent Phone', type: 'tel' },
-  {name: 'address', label: 'Address', type: 'textarea', colSpan: 2 },
-  {name: 'isActive', label: 'Is Active', type: 'checkbox' }
-];
+import StudentForm, { emptyStudentInput } from './StudentForm';
+import { useClasses } from '@/features/classes/hooks/useClasses';
 
 export default function StudentsView() {
   const navigate = useNavigate();
@@ -59,27 +27,89 @@ export default function StudentsView() {
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [formData, setFormData] = useState<StudentInput>(emptyStudentInput);
 
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const createMutation = useCreateStudentMutation();
   const updateMutation = useUpdateStudentMutation();
   const deleteMutation = useDeleteStudentMutation();
-  const [formData, setFormData] = useState<StudentInput>(initialFormData);
+
   const { data = [], isLoading, error } = useStudents();
+  const { data: classes = [], error: classesError } = useClasses();
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const classOptions = useMemo(
+    () => {
+      if (classes.length > 0) {
+        return classes.map((item) => ({
+          label: item.section ? `${item.name} - ${item.section}` : item.name,
+          value: String(item.id),
+        }));
+      }
+
+      const optionsByClassId = new Map<number, string>();
+      data.forEach((student) => {
+        if (!student.classId || !student.className) {
+          return;
+        }
+
+        optionsByClassId.set(
+          student.classId,
+          student.sectionName ? `${student.className} - ${student.sectionName}` : student.className
+        );
+      });
+
+      return Array.from(optionsByClassId, ([value, label]) => ({
+        label,
+        value: String(value),
+      }));
+    },
+    [classes, data]
+  );
+
+  const classFilterOptions = useMemo(
+    () => {
+      const classNames = classes.length > 0
+        ? classes.map((item) => item.name)
+        : data.map((student) => student.className);
+
+      return Array.from(new Set(classNames.filter(Boolean))).sort();
+    },
+    [classes, data]
+  );
 
   const resetForm = () => {
     setSelectedStudent(null);
-    setFormData(initialFormData);
+    setFormData(emptyStudentInput);
+    setModalMode('add');
+    setShowModal(false);
   };
 
-  const handleSubmit = async (payload: StudentInput) => {
+  const normalizeStudentInput = (input: StudentInput): StudentInput => ({
+    ...input,
+    classId: Number(input.classId) || 0,
+    sectionId: input.sectionId ? Number(input.sectionId) : 0,
+    admissionNumber: input.admissionNumber?.trim() || undefined,
+    gender: input.gender?.trim() || undefined,
+    email: input.email?.trim() || undefined,
+    parent: input.parent?.trim() || undefined,
+    parentPhone: input.parentPhone?.trim() || undefined,
+    dateOfBirth: input.dateOfBirth || undefined,
+    admissionDate: input.admissionDate || undefined,
+    address: input.address?.trim() || undefined,
+  });
+
+  const handleSubmit = async (input: StudentInput) => {
+    const payload = normalizeStudentInput(input);
+
     try {
-      if (selectedStudent) {
+      if (modalMode === 'edit' && selectedStudent) {
         await updateMutation.mutateAsync({ id: selectedStudent.id, payload });
         success('Student updated successfully.');
       } else {
         await createMutation.mutateAsync(payload);
-        success('Student saved successfully.');
+        success('Student registered successfully.');
       }
 
       resetForm();
@@ -87,7 +117,6 @@ export default function StudentsView() {
       showError(mutationError instanceof Error ? mutationError.message : 'Unable to save student.');
     }
   };
-
 
   const handleDelete = async (item: Student) => {
     const confirmed = await confirm(`This will permanently remove ${item.name} from the system.`, 'Delete Student?');
@@ -349,8 +378,9 @@ export default function StudentsView() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 w-full">
         <select value={filterClass} onChange={(event) => setFilterClass(event.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
           <option>All Classes</option>
-          <option>Grade 1</option>
-          <option>Grade 2</option>
+          {classFilterOptions.map((className) => (
+            <option key={className} value={className}>{className}</option>
+          ))}
         </select>
         <select value={filterSection} onChange={(event) => setFilterSection(event.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
           <option>All Sections</option>
@@ -401,6 +431,11 @@ export default function StudentsView() {
           {error instanceof Error ? error.message : 'Unable to load students.'}
         </div>
       )}
+      {classesError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {classesError instanceof Error ? classesError.message : 'Unable to load classes.'}
+        </div>
+      )}
 
       <GenericTable
         title="Student Management"
@@ -412,7 +447,7 @@ export default function StudentsView() {
         onSearchChange={setSearchTerm}
         customFilters={customFilters}
         topActions={topActions}
-        onAdd={() => { setModalMode('add'); setSelectedStudent(null); setShowModal(true); }}
+        onAdd={() => { setModalMode('add'); setSelectedStudent(null); setFormData(emptyStudentInput); setShowModal(true); }}
         addLabel="Add Student"
         onView={(student) => navigate(`/students/${student.id}`)}
         onEdit={(student) => { handleEdit(student); setModalMode('edit'); setShowModal(true); }}
@@ -423,14 +458,15 @@ export default function StudentsView() {
         canDelete={auth?.role.toLowerCase() === 'admin'}
       />
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={modalMode === 'add' ? 'Register New Student' : 'Edit Student Details'}>
-        <GenericForm fields={formFields} 
-          initialData={formData}
-          onSubmit={handleSubmit} 
-          onCancel={() => setShowModal(false)} 
-          submitLabel={modalMode === 'add' ? 'Register Student' : 'Update Student'} 
-          />
-      </Modal>
+      <StudentForm
+        isOpen={showModal}
+        mode={modalMode}
+        initialData={formData}
+        classOptions={classOptions}
+        isLoading={isSaving}
+        onSubmit={handleSubmit}
+        onClose={resetForm}
+      />
 
       <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Student Profile Details">
         {selectedStudent && (

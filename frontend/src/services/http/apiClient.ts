@@ -21,12 +21,16 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ message?: string }>) => {
+  (error: AxiosError<{ message?: string; detail?: string }>) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().clearSession();
     }
-
-    const message = error.response?.data?.message ?? error.message ?? 'Request failed.';
+    console.log('API Error:', error);
+    const message = 
+      error.response?.data?.detail ?? 
+      error.response?.data?.message ?? 
+      error.message ?? 
+      'Request failed.';
     return Promise.reject(new Error(message));
   }
 );
