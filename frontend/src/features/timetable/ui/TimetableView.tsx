@@ -1,102 +1,147 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Clock, Edit, User, MapPin, Plus, Trash2 } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
+import { type FormEvent, useState, useEffect, useMemo } from 'react';
+import { Clock, Edit, User, MapPin, Plus, Printer, Trash2 } from 'lucide-react';
 import Modal from '@/components/Modal';
-import GenericForm, { type FormField } from '@/components/GenericForm';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useToast, useConfirm } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
-
-interface TimetableEntry {
-  id: number;
-  className: string;
-  subjectName: string;
-  teacherName: string;
-  dayOfWeek: string;
-  startTime: string;
-  endTime: string;
-  room: string;
-}
-
-interface Student {
-  id: number;
-  className?: string;
-  firstName: string;
-  lastName: string;
-}
+import { useClasses } from '@/features/classes/hooks/useClasses';
+import { useSubjects } from '@/features/subjects/hooks/useSubjects';
+import { useTeachers } from '@/features/teachers/hooks/useTeachers';
+import type { StudentClass, TimetableEntry, TimetableInput } from '../model/timetable.types';
+import { useCreateTimetableMutation, useDeleteTimetableMutation, useTimetableClasses, useTimetableEntries, useUpdateTimetableMutation } from '../hooks/useTimetable';
 
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
 const days = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
 
-const getTimetableFormFields = (): FormField[] => [
-  { name: 'subjectName', label: 'Subject Name', type: 'text', placeholder: 'e.g. Advanced Calculus', required: true },
-  { name: 'teacherName', label: 'Teacher Name', type: 'text', placeholder: 'e.g. Prof. Hawking', required: true },
-  { name: 'dayOfWeek', label: 'Day of Week', type: 'select', options: days.map((day) => ({ label: day, value: day })), required: true },
-  { name: 'room', label: 'Room / Lab', type: 'text', placeholder: 'e.g. Science Lab 02', required: true },
-  { name: 'startTime', label: 'Start Time', type: 'select', options: timeSlots.map((time) => ({ label: time, value: time })), required: true },
-  { name: 'endTime', label: 'End Time', type: 'select', options: timeSlots.map((time) => ({ label: time, value: time })), required: true },
-];
+type TimetableFormData = Omit<TimetableInput, 'className'>;
+
+const emptyTimetableForm: TimetableFormData = {
+  subjectName: '',
+  teacherName: '',
+  dayOfWeek: 'Monday',
+  startTime: '08:00',
+  endTime: '09:00',
+  room: '',
+};
 
 export default function TimetableView() {
-  const api = useApi();
   const { auth } = useAuth();
+  const { data: classesData = [] } = useTimetableClasses();
+  const { data: schoolClasses = [], error: classesError } = useClasses();
+  const { data: subjects = [], error: subjectsError } = useSubjects();
+  const { data: teachers = [], error: teachersError } = useTeachers();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const [selectedClass, setSelectedClass] = useState('');
-  const [entries, setEntries] = useState<TimetableEntry[]>([]);
-  const [classes, setClasses] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedEntry, setSelectedEntry] = useState<TimetableEntry | null>(null);
+  const [formData, setFormData] = useState<TimetableFormData>(emptyTimetableForm);
+  const isAdmin = auth?.role.toLowerCase() === 'admin';
+  const subjectOptions = useMemo(
+    () => subjects.map((subject) => ({ label: `${subject.name} (${subject.code})`, value: subject.name })),
+    [subjects]
+  );
+  const subjectTeacherByName = useMemo(
+    () => new Map(subjects.map((subject) => [subject.name, subject.teacher ?? ''])),
+    [subjects]
+  );
+  const teacherOptions = useMemo(
+    () => teachers.map((teacher) => ({ label: teacher.name, value: teacher.name })),
+    [teachers]
+  );
+  const mappedTeacherName = subjectTeacherByName.get(formData.subjectName) ?? '';
+  const teacherSelectOptions = useMemo(() => {
+    if (!mappedTeacherName || teacherOptions.some((teacher) => teacher.value === mappedTeacherName)) {
+      return teacherOptions;
+    }
 
-  const fetchClasses = useCallback(async () => {
-    try {
-      const data = await api.get('/students');
-      const classSet = new Set<string>();
-      data.forEach((student: Student) => {
-        if (student.className) classSet.add(student.className);
+    return [{ label: mappedTeacherName, value: mappedTeacherName }, ...teacherOptions];
+  }, [mappedTeacherName, teacherOptions]);
+  const classes = useMemo(() => {
+    const classNames = schoolClasses.length > 0
+      ? schoolClasses.map((item) => item.name)
+      : classesData.map((student: StudentClass) => student.className);
+
+    return Array.from(new Set(classNames.filter(Boolean) as string[])).sort();
+  }, [classesData, schoolClasses]);
+  const selectedSchoolClass = useMemo(
+    () => schoolClasses.find((item) => item.name === selectedClass),
+    [schoolClasses, selectedClass]
+  );
+  const mappedRoom = selectedSchoolClass?.room?.trim() ?? '';
+  const { data: entries = [], isLoading } = useTimetableEntries(selectedClass);
+  const createTimetableMutation = useCreateTimetableMutation(selectedClass);
+  const updateTimetableMutation = useUpdateTimetableMutation(selectedClass);
+  const deleteTimetableMutation = useDeleteTimetableMutation(selectedClass);
+
+  useEffect(() => {
+    if (classes.length > 0 && !selectedClass) {
+      setSelectedClass(classes[0]);
+    }
+  }, [classes, selectedClass]);
+
+  useEffect(() => {
+    if (showModal && modalMode === 'add' && mappedRoom) {
+      setFormData((current) => ({ ...current, room: mappedRoom }));
+    }
+  }, [mappedRoom, modalMode, showModal]);
+
+  useEffect(() => {
+    if (!showModal) {
+      return;
+    }
+
+    if (selectedEntry) {
+      setFormData({
+        subjectName: selectedEntry.subjectName,
+        teacherName: selectedEntry.teacherName,
+        dayOfWeek: selectedEntry.dayOfWeek,
+        startTime: selectedEntry.startTime,
+        endTime: selectedEntry.endTime,
+        room: selectedEntry.room,
       });
-      const classArray = Array.from(classSet).sort();
-      setClasses(classArray);
-      if (classArray.length > 0 && !selectedClass) {
-        setSelectedClass(classArray[0]);
-      }
-    } catch (err: any) {
-      error(err.message);
+      return;
     }
-  }, [api, selectedClass, error]);
 
-  const fetchTimetable = useCallback(async () => {
-    if (!selectedClass) return;
-    try {
-      setLoading(true);
-      const data = await api.get(`/timetable/${encodeURIComponent(selectedClass)}`);
-      setEntries(data || []);
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
+    setFormData(emptyTimetableForm);
+  }, [selectedEntry, showModal]);
+
+  const handleSubjectChange = (subjectName: string) => {
+    const teacherName = subjectTeacherByName.get(subjectName) ?? '';
+    setFormData((current) => ({
+      ...current,
+      subjectName,
+      teacherName,
+    }));
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedClass) {
+      error('Select a class before creating a timetable entry.');
+      return;
     }
-  }, [api, selectedClass]);
 
-  useEffect(() => { fetchClasses(); }, [fetchClasses]);
-  useEffect(() => { fetchTimetable(); }, [fetchTimetable]);
+    if (!formData.subjectName || !formData.teacherName || !formData.dayOfWeek || !formData.startTime || !formData.endTime || !formData.room.trim()) {
+      error('Complete all timetable fields before saving.');
+      return;
+    }
 
-  const handleSubmit = async (data: any) => {
     try {
-      const payload = { ...data, className: selectedClass };
+      const payload: TimetableInput = { ...formData, room: formData.room.trim(), className: selectedClass };
       if (modalMode === 'add') {
-        await api.post('/timetable', payload);
+        await createTimetableMutation.mutateAsync(payload);
         success('Timetable entry added successfully.');
       } else if (selectedEntry) {
-        await api.put(`/timetable/${selectedEntry.id}`, payload);
+        await updateTimetableMutation.mutateAsync({ id: selectedEntry.id, payload });
         success('Timetable entry updated successfully.');
       }
-      await fetchTimetable();
       setShowModal(false);
       setSelectedEntry(null);
+      setFormData(emptyTimetableForm);
     } catch (err: any) {
       error(err.message);
     }
@@ -106,20 +151,122 @@ export default function TimetableView() {
     const ok = await confirm('This timetable entry will be permanently removed.', 'Delete Entry?');
     if (!ok) return;
     try {
-      await api.delete(`/timetable/${id}`);
-      await fetchTimetable();
+      await deleteTimetableMutation.mutateAsync(id);
       success('Timetable entry deleted successfully.');
     } catch (err: any) {
       error(err.message);
     }
   };
 
+  const openCreateModal = (dayOfWeek = 'Monday', startTime = '08:00') => {
+    const startIndex = timeSlots.indexOf(startTime);
+    const endTime = timeSlots[startIndex + 1] ?? timeSlots[startIndex] ?? '09:00';
+
+    setModalMode('add');
+    setSelectedEntry(null);
+    setFormData({
+      ...emptyTimetableForm,
+      dayOfWeek,
+      startTime,
+      endTime,
+      room: mappedRoom,
+    });
+    setShowModal(true);
+  };
+
   const handleEditClick = (entry: TimetableEntry) => { setSelectedEntry(entry); setModalMode('edit'); setShowModal(true); };
-  const handleAddClick = () => { setModalMode('add'); setSelectedEntry(null); setShowModal(true); };
+  const handleAddClick = () => openCreateModal();
   const getEntryForSlot = (day: string, time: string) => entries.find((entry) => entry.dayOfWeek === day && entry.startTime === time);
+
+  const escapeHtml = (value: string | number | undefined) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+  const handlePrint = () => {
+    if (!selectedClass) {
+      error('Select a class before printing.');
+      return;
+    }
+
+    const rows = timeSlots.map((time) => `
+      <tr>
+        <th>${escapeHtml(time)}</th>
+        ${days.map((day) => {
+          const entry = getEntryForSlot(day, time);
+          return `<td>${entry ? `
+            <strong>${escapeHtml(entry.subjectName)}</strong>
+            <span>${escapeHtml(entry.teacherName)}</span>
+            <small>${escapeHtml(entry.startTime)} - ${escapeHtml(entry.endTime)} | Room ${escapeHtml(entry.room)}</small>
+          ` : ''}</td>`;
+        }).join('')}
+      </tr>
+    `).join('');
+
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!printWindow) {
+      error('Popup blocked. Please allow popups to print the timetable.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${escapeHtml(selectedClass)} Timetable</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #111827; padding: 24px; }
+            h1 { margin: 0 0 4px; font-size: 24px; }
+            p { margin: 0 0 20px; color: #4b5563; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            th, td { border: 1px solid #d1d5db; padding: 10px; vertical-align: top; min-height: 72px; }
+            thead th { background: #f3f4f6; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+            tbody th { width: 80px; background: #f9fafb; }
+            strong, span, small { display: block; }
+            strong { color: #1d4ed8; margin-bottom: 6px; }
+            span { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+            small { color: #4b5563; font-size: 11px; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(selectedClass)} Timetable</h1>
+          <p>${mappedRoom ? `Default room: ${escapeHtml(mappedRoom)}` : 'Academic Schedule Planner'}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                ${days.map((day) => `<th>${escapeHtml(day)}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
 
   return (
     <div className="p-6">
+      {classesError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {classesError instanceof Error ? classesError.message : 'Unable to load classes.'}
+        </div>
+      )}
+      {(subjectsError || teachersError) && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {subjectsError instanceof Error
+            ? subjectsError.message
+            : teachersError instanceof Error
+              ? teachersError.message
+              : 'Unable to load timetable lookups.'}
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-gray-900 font-black text-3xl mb-1">Class Timetable</h1>
@@ -132,7 +279,13 @@ export default function TimetableView() {
               {classes.map((className) => <option key={className} value={className}>{className}</option>)}
             </select>
           )}
-          {auth?.role === 'admin' && selectedClass && (
+          {selectedClass && (
+            <button onClick={handlePrint} className="px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 font-black shadow-sm transition-all active:scale-95">
+              <Printer className="w-5 h-5 text-[#2D6CDF]" />
+              Print
+            </button>
+          )}
+          {isAdmin && selectedClass && (
             <button onClick={handleAddClick} className="px-6 py-3 bg-[#2D6CDF] text-white rounded-xl hover:bg-[#1a4ba8] flex items-center justify-center gap-2 font-black shadow-xl shadow-[#2D6CDF]/20 transition-all active:scale-95">
               <Plus className="w-5 h-5" />
               Add Entry
@@ -167,7 +320,7 @@ export default function TimetableView() {
                           <div className="bg-blue-50/50 rounded-3xl p-5 border border-blue-100 hover:bg-blue-50 hover:shadow-lg transition-all group/card relative cursor-pointer">
                             <div className="flex items-center justify-between mb-3">
                               <span className="px-3 py-1 bg-white text-[#2D6CDF] rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm">{entry.subjectName}</span>
-                              {auth?.role === 'admin' && (
+                              {isAdmin && (
                                 <div className="flex gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
                                   <button onClick={() => handleEditClick(entry)} className="p-1.5 hover:bg-blue-100 rounded-lg transition-colors text-[#2D6CDF]" title="Edit"><Edit className="w-4 h-4" /></button>
                                   <button onClick={() => handleDelete(entry.id)} className="p-1.5 hover:bg-red-100 rounded-lg transition-colors text-red-600" title="Delete"><Trash2 className="w-4 h-4" /></button>
@@ -182,9 +335,15 @@ export default function TimetableView() {
                             </div>
                           </div>
                         ) : (
-                          <div className="h-32 rounded-3xl border-2 border-dashed border-gray-50 flex items-center justify-center group-hover:border-blue-100 transition-colors">
-                            <Plus className="w-6 h-6 text-gray-100 group-hover:text-blue-200 transition-colors" />
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => isAdmin && openCreateModal(day, time)}
+                            disabled={!isAdmin}
+                            className="h-32 w-full rounded-3xl border-2 border-dashed border-gray-100 flex items-center justify-center transition-colors hover:border-blue-200 hover:bg-blue-50/30 disabled:cursor-default disabled:hover:border-gray-100 disabled:hover:bg-transparent"
+                            title={isAdmin ? 'Add timetable entry' : undefined}
+                          >
+                            <Plus className="w-6 h-6 text-gray-200 transition-colors group-hover:text-blue-200" />
+                          </button>
                         )}
                       </td>
                     );
@@ -197,7 +356,119 @@ export default function TimetableView() {
       </div>
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={modalMode === 'add' ? 'New Schedule Entry' : 'Edit Schedule Entry'}>
-        <GenericForm fields={getTimetableFormFields()} initialData={selectedEntry || { dayOfWeek: 'Monday', startTime: '08:00', endTime: '09:00' }} onSubmit={handleSubmit} onCancel={() => setShowModal(false)} submitLabel={modalMode === 'add' ? 'Create Entry' : 'Update Entry'} />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block font-bold text-sm mb-2 text-gray-700">Class</label>
+              <input
+                type="text"
+                value={selectedClass}
+                disabled
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 font-bold disabled:cursor-not-allowed disabled:opacity-75"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-sm mb-2 text-gray-700">Subject Name <span className="text-red-500">*</span></label>
+              <select
+                value={formData.subjectName}
+                onChange={(event) => handleSubjectChange(event.target.value)}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all appearance-none"
+              >
+                <option value="">Select Subject Name</option>
+                {subjectOptions.map((subject) => (
+                  <option key={subject.value} value={subject.value}>{subject.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-sm mb-2 text-gray-700">Teacher Name <span className="text-red-500">*</span></label>
+              <select
+                value={formData.teacherName}
+                onChange={(event) => setFormData((current) => ({ ...current, teacherName: event.target.value }))}
+                disabled={Boolean(mappedTeacherName)}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all appearance-none disabled:cursor-not-allowed disabled:opacity-75"
+              >
+                <option value="">{mappedTeacherName ? mappedTeacherName : 'Select Teacher Name'}</option>
+                {teacherSelectOptions.map((teacher) => (
+                  <option key={teacher.value} value={teacher.value}>{teacher.label}</option>
+                ))}
+              </select>
+              
+            </div>
+
+            <div>
+              <label className="block font-bold text-sm mb-2 text-gray-700">Day of Week <span className="text-red-500">*</span></label>
+              <select
+                value={formData.dayOfWeek}
+                onChange={(event) => setFormData((current) => ({ ...current, dayOfWeek: event.target.value }))}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all appearance-none"
+              >
+                {days.map((day) => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-sm mb-2 text-gray-700">Room / Lab <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formData.room}
+                onChange={(event) => setFormData((current) => ({ ...current, room: event.target.value }))}
+                disabled={Boolean(mappedRoom)}
+                placeholder="e.g. Science Lab 02"
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all disabled:cursor-not-allowed disabled:opacity-75"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-sm mb-2 text-gray-700">Start Time <span className="text-red-500">*</span></label>
+              <select
+                value={formData.startTime}
+                onChange={(event) => setFormData((current) => ({ ...current, startTime: event.target.value }))}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all appearance-none"
+              >
+                {timeSlots.map((time) => (
+                  <option key={time} value={time}>{time}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-sm mb-2 text-gray-700">End Time <span className="text-red-500">*</span></label>
+              <select
+                value={formData.endTime}
+                onChange={(event) => setFormData((current) => ({ ...current, endTime: event.target.value }))}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all appearance-none"
+              >
+                {timeSlots.map((time) => (
+                  <option key={time} value={time}>{time}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createTimetableMutation.isPending || updateTimetableMutation.isPending}
+              className="px-8 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] disabled:opacity-50 transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
+            >
+              {createTimetableMutation.isPending || updateTimetableMutation.isPending
+                ? 'Saving...'
+                : modalMode === 'add' ? 'Create Entry' : 'Update Entry'}
+            </button>
+          </div>
+        </form>
       </Modal>
 
       <ConfirmDialog {...confirmState} onConfirm={handleConfirm} onCancel={handleCancel} />

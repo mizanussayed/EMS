@@ -10,7 +10,7 @@ using System.Text;
 
 namespace EMS.Application.Services;
 
-public class TokenService(IOptions<JwtOptions> jwtOptions) : ITokenService
+internal sealed class TokenService(IOptions<JwtOptions> jwtOptions) : ITokenService
 {
     private readonly JwtOptions _jwtOptions = jwtOptions.Value;
 

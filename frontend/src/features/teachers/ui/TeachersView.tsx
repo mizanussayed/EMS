@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Plus, Mail, Phone, BookOpen, Edit, Trash2 } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
 import { useToast, useConfirm } from '@/hooks/useToast';
 import GridList from '@/components/GridList';
 import Modal from '@/components/Modal';
@@ -9,20 +8,8 @@ import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { formatDateForInput, formatDateForAPI, formatDateForDisplay } from '@/utils/dateUtils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-
-interface Teacher {
-  id: number;
-  name: string;
-  subject?: string;
-  email: string;
-  phone?: string;
-  qualification?: string;
-  experience?: string;
-  classes?: string;
-  status: string;
-  address?: string;
-  dateOfJoining?: string;
-}
+import type { Teacher, TeacherInput } from '../model/teacher.types';
+import { useCreateTeacherMutation, useDeleteTeacherMutation, useTeachers, useUpdateTeacherMutation } from '../hooks/useTeachers';
 
 const formFields: FormField[] = [
   { name: 'name', label: 'Full Name', type: 'text', placeholder: 'Enter staff name', required: true, colSpan: 2 },
@@ -37,8 +24,11 @@ const formFields: FormField[] = [
 ];
 
 export default function TeachersView() {
-  const api = useApi();
   const { auth } = useAuth();
+  const { data = [], isLoading } = useTeachers();
+  const createTeacherMutation = useCreateTeacherMutation();
+  const updateTeacherMutation = useUpdateTeacherMutation();
+  const deleteTeacherMutation = useDeleteTeacherMutation();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,28 +36,10 @@ export default function TeachersView() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-
-  const fetchTeachers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await api.get('/staff');
-      setTeachers(data);
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
-
-  useEffect(() => {
-    fetchTeachers();
-  }, [fetchTeachers]);
 
   const handleSubmit = async (data: any) => {
     try {
-      const payload = {
+      const payload: TeacherInput = {
         ...data,
         role: 'Teacher',
         status: data.status || 'Active',
@@ -75,12 +47,11 @@ export default function TeachersView() {
       };
 
       if (modalMode === 'add') {
-        await api.post('/staff', payload);
+        await createTeacherMutation.mutateAsync(payload);
       } else {
-        await api.put(`/staff/${selectedTeacher?.id}`, payload);
+        await updateTeacherMutation.mutateAsync({ id: selectedTeacher?.id ?? 0, payload });
       }
 
-      await fetchTeachers();
       setShowModal(false);
       setSelectedTeacher(null);
       success(modalMode === 'add' ? 'Staff member added successfully.' : 'Staff profile updated successfully.');
@@ -93,8 +64,7 @@ export default function TeachersView() {
     const ok = await confirm('This staff member will be permanently removed from the system.', 'Delete Staff Member?');
     if (!ok) return;
     try {
-      await api.delete(`/staff/${id}`);
-      await fetchTeachers();
+      await deleteTeacherMutation.mutateAsync(id);
       success('Staff member deleted successfully.');
     } catch (err: any) {
       error(err.message);
@@ -113,16 +83,16 @@ export default function TeachersView() {
     setShowViewModal(true);
   };
 
-  const filteredTeachers = teachers.filter((teacher) =>
+  const filteredTeachers = data.filter((teacher) =>
     teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (teacher.subject?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     teacher.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const stats = [
-    { label: 'Total Staff', value: teachers.length },
-    { label: 'Active', value: teachers.filter((teacher) => teacher.status === 'Active').length, color: 'text-green-600' },
-    { label: 'On Leave', value: teachers.filter((teacher) => teacher.status === 'On Leave').length, color: 'text-orange-600' },
+    { label: 'Total Staff', value: data.length },
+    { label: 'Active', value: data.filter((teacher) => teacher.status === 'Active').length, color: 'text-green-600' },
+    { label: 'On Leave', value: data.filter((teacher) => teacher.status === 'On Leave').length, color: 'text-orange-600' },
     { label: 'Avg Experience', value: '11y', color: 'text-blue-600' },
   ];
 
@@ -193,7 +163,7 @@ export default function TeachersView() {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search by name, subject, or email..."
-        isLoading={loading && teachers.length === 0}
+        isLoading={isLoading}
       />
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={modalMode === 'add' ? 'Add New Teacher' : 'Edit Teacher Profile'}>

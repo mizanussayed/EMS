@@ -1,54 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { DollarSign, User, Settings } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
 import GenericTable, { type Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
 import { RoleGuard } from '@/app/guards/RoleGuard';
 import FeeConfigurationView from './FeeConfigurationView';
-
-interface FeeRecord {
-  id: number;
-  studentId: number;
-  studentName: string;
-  className: string;
-  month: string;
-  amount: number;
-  paidAmount: number;
-  status: string;
-  paymentDate?: string;
-  paymentMethod?: string;
-}
+import type { FeeRecord } from '../model/fee.types';
+import { useFees, usePayFeeMutation } from '../hooks/useFees';
 
 export default function FeesView() {
-  const api = useApi();
-  const [records, setRecords] = useState<FeeRecord[]>([]);
+  const { data = [], isLoading } = useFees();
+  const payFeeMutation = usePayFeeMutation();
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<FeeRecord | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [activeTab, setActiveTab] = useState<'records' | 'config'>('records');
 
-  const fetchFees = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await api.get('/fees');
-      setRecords(data);
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
-
-  useEffect(() => { fetchFees(); }, [fetchFees]);
-
   const handleProcessPayment = async () => {
     if (!selectedRecord) return;
     try {
-      await api.put(`/fees/${selectedRecord.id}/pay`, { amount: parseFloat(paymentAmount), method: paymentMethod });
-      await fetchFees();
+      await payFeeMutation.mutateAsync({ id: selectedRecord.id, payload: { amount: parseFloat(paymentAmount), method: paymentMethod } });
       setShowPaymentModal(false);
     } catch (err: any) {
       alert(err.message);
@@ -63,16 +35,16 @@ export default function FeesView() {
     { header: 'Status', accessor: (record) => <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${record.status === 'Paid' ? 'bg-green-50 text-green-700 border-green-100' : record.status === 'Partially Paid' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-red-50 text-red-700 border-red-100'}`}>{record.status}</span> },
   ];
 
-  const totalCollected = records.reduce((accumulator, record) => accumulator + record.paidAmount, 0);
-  const totalDue = records.reduce((accumulator, record) => accumulator + (record.amount - record.paidAmount), 0);
-  const collectionRate = records.length ? ((totalCollected / records.reduce((accumulator, record) => accumulator + record.amount, 0)) * 100).toFixed(1) : '0.0';
+  const totalCollected = data.reduce((accumulator, record) => accumulator + record.paidAmount, 0);
+  const totalDue = data.reduce((accumulator, record) => accumulator + (record.amount - record.paidAmount), 0);
+  const collectionRate = data.length ? ((totalCollected / data.reduce((accumulator, record) => accumulator + record.amount, 0)) * 100).toFixed(1) : '0.0';
   const stats = [
     { label: 'Total Collected', value: `$${totalCollected.toLocaleString()}`, color: 'text-green-600' },
     { label: 'Outstanding', value: `$${totalDue.toLocaleString()}`, color: 'text-red-600' },
     { label: 'Efficiency', value: `${collectionRate}%`, color: 'text-blue-600' },
   ];
 
-  const filteredRecords = records.filter((record) => record.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || record.className.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredRecords = data.filter((record) => record.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || record.className.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <RoleGuard allowedRoles={['admin']}>
@@ -95,7 +67,7 @@ export default function FeesView() {
             onSearchChange={setSearchTerm}
             onView={(record) => { setSelectedRecord(record); setPaymentAmount(String(record.amount - record.paidAmount)); setShowPaymentModal(true); }}
             addLabel="Download Report"
-            isLoading={loading && records.length === 0}
+            isLoading={isLoading}
           />
         )}
 

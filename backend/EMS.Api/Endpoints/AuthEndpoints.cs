@@ -60,13 +60,13 @@ public static class AuthEndpoints
 
             if (user is null)
             {
-                return Results.Unauthorized();
+                return Results.Problem("User not found", "User");
             }
 
             var verification = hasher.VerifyHashedPassword(user, user.PasswordHash, credentials.Password);
             if (verification == PasswordVerificationResult.Failed)
             {
-                return Results.Unauthorized();
+                return Results.Problem("Invalid password", "Password");
             }
 
             var accessToken = tokens.CreateToken(user);

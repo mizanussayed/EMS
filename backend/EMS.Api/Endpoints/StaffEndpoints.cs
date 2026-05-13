@@ -1,6 +1,5 @@
 using EMS.Application.Interfaces;
 using EMS.Domain;
-using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
 
@@ -12,67 +11,29 @@ public static class StaffEndpoints
             .WithTags("Staff")
             .RequireAuthorization("StaffOnly");
 
-        staffGroup.MapGet("", async (IApplicationDbContext db) =>
-            await db.Staff.AsNoTracking().OrderBy(s => s.Name).ToListAsync())
+        staffGroup.MapGet("", async (IStaffService staffService) =>
+            await staffService.GetAllAsync())
             .WithName("GetStaff");
 
-        staffGroup.MapGet("/{id:int}", async (int id, IApplicationDbContext db) =>
-            await db.Staff.FindAsync(id) is Staff member ? Results.Ok(member) : Results.NotFound())
+        staffGroup.MapGet("/{id:int}", async (int id, IStaffService staffService) =>
+            await staffService.GetByIdAsync(id) is Staff member ? Results.Ok(member) : Results.NotFound())
             .WithName("GetStaffById");
 
-        staffGroup.MapPost("", async (Staff member, IApplicationDbContext db, IAuditService audit) =>
+        staffGroup.MapPost("", async (Staff member, IStaffService staffService) =>
         {
-            db.Staff.Add(member);
-            await db.SaveChangesAsync();
-            await audit.LogAsync("CREATE", "Staff", member.Id.ToString(),
-                $"Staff member {member.Name} ({member.Role}) created.");
-            return Results.Created($"/api/staff/{member.Id}", member);
+            var created = await staffService.CreateAsync(member);
+            return Results.Created($"/api/staff/{created.Id}", created);
         })
         .RequireAuthorization("AdminOnly")
         .WithName("CreateStaff");
 
-        staffGroup.MapPut("/{id:int}", async (int id, Staff update, IApplicationDbContext db, IAuditService audit) =>
-        {
-            var existing = await db.Staff.FindAsync(id);
-            if (existing is null)
-            {
-                return Results.NotFound();
-            }
-
-            existing.Name = update.Name;
-            existing.Subject = update.Subject;
-            existing.Email = update.Email;
-            existing.Phone = update.Phone;
-            existing.Qualification = update.Qualification;
-            existing.Experience = update.Experience;
-            existing.Classes = update.Classes;
-            existing.Status = update.Status;
-            existing.Address = update.Address;
-            existing.DateOfJoining = update.DateOfJoining;
-            existing.Role = update.Role;
-
-            await db.SaveChangesAsync();
-            await audit.LogAsync("UPDATE", "Staff", existing.Id.ToString(),
-                $"Staff member {existing.Name} updated.");
-            return Results.NoContent();
-        })
+        staffGroup.MapPut("/{id:int}", async (int id, Staff update, IStaffService staffService) =>
+            await staffService.UpdateAsync(id, update) ? Results.NoContent() : Results.NotFound())
         .RequireAuthorization("AdminOnly")
         .WithName("UpdateStaff");
 
-        staffGroup.MapDelete("/{id:int}", async (int id, IApplicationDbContext db, IAuditService audit) =>
-        {
-            var existing = await db.Staff.FindAsync(id);
-            if (existing is null)
-            {
-                return Results.NotFound();
-            }
-
-            db.Staff.Remove(existing);
-            await db.SaveChangesAsync();
-            await audit.LogAsync("DELETE", "Staff", existing.Id.ToString(),
-                $"Staff member {existing.Name} deleted.");
-            return Results.NoContent();
-        })
+        staffGroup.MapDelete("/{id:int}", async (int id, IStaffService staffService) =>
+            await staffService.DeleteAsync(id) ? Results.NoContent() : Results.NotFound())
         .RequireAuthorization("AdminOnly")
         .WithName("DeleteStaff");
 

@@ -3,12 +3,20 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+COPY Directory.Build.props ./
+COPY Directory.Packages.props ./
 COPY EMS.slnx ./
-COPY backend/EMS.Api/EMS.Api.csproj ./backend/EMS.Api/
-RUN dotnet restore ./backend/EMS.Api/EMS.Api.csproj
+COPY EMS.Api/EMS.Api.csproj ./EMS.Api/
+COPY EMS.Application/EMS.Application.csproj ./EMS.Application/
+COPY EMS.Infrastructure/EMS.Infrastructure.csproj ./EMS.Infrastructure/
+COPY EMS.Domain/EMS.Domain.csproj ./EMS.Domain/
+RUN dotnet restore ./EMS.Api/EMS.Api.csproj
 
-COPY backend/EMS.Api/ ./backend/EMS.Api/
-RUN dotnet publish ./backend/EMS.Api/EMS.Api.csproj -c Release -o /app/publish
+COPY EMS.Api/ ./EMS.Api/
+COPY EMS.Application/ ./EMS.Application/
+COPY EMS.Infrastructure/ ./EMS.Infrastructure/
+COPY EMS.Domain/ ./EMS.Domain/
+RUN dotnet publish ./EMS.Api/EMS.Api.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app

@@ -1,18 +1,40 @@
 export interface Student {
   id: number;
-  rollNo: string;
+  classRollNo: string;
+  admissionNumber?: string;
   name: string;
   className: string;
-  section?: string;
+  sectionName?: string;
   email?: string;
-  phone?: string;
   parent?: string;
   parentPhone?: string;
   dateOfBirth?: string;
   admissionDate?: string;
-  status: 'Active' | 'Inactive';
-  attendance?: string;
-  admissionNumber?: string;
   address?: string;
   gender?: string;
+  isActive: boolean;
+  classId: number;
+  sectionId?: number;
 }
+
+export interface StudentInput {
+  classRollNo: string;
+  admissionNumber?: string;
+  name: string;
+  classId: number;
+  sectionId?: number;
+  email?: string;
+  parent?: string;
+  parentPhone?: string;
+  dateOfBirth?: string;
+  admissionDate?: string;
+  address?: string;
+  gender?: string;
+  isActive: boolean;
+}
+
+export interface AttendanceRecord {
+  date: string;
+  status: 'Present' | 'Absent' | 'Late' | 'Excused';
+}
+

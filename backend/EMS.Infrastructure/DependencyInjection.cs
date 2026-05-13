@@ -13,7 +13,7 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection") ?? "Data Source=ems.db";
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlite(connectionString));
+            options.UseNpgsql(connectionString));
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<AppDbContext>());
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();

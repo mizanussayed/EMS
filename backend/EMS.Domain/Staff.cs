@@ -12,6 +12,6 @@ public class Staff
     public string? Classes { get; set; }
     public string Status { get; set; } = "Active";
     public string? Address { get; set; }
-    public DateTime? DateOfJoining { get; set; }
+    public DateOnly DateOfJoining { get; set; }
     public string Role { get; set; } = "Teacher";
 }

@@ -1,7 +1,5 @@
 using EMS.Application.DTOs;
 using EMS.Application.Interfaces;
-using EMS.Domain;
-using Microsoft.EntityFrameworkCore;
 
 namespace EMS.Api.Endpoints;
 
@@ -11,65 +9,25 @@ public static class AttendanceEndpoints
     {
         var attendanceGroup = app.MapGroup("/api/attendance").WithTags("Attendance");
 
-        attendanceGroup.MapGet("/{className}", async (string className, IApplicationDbContext db) =>
-        {
-            var attendance = await db.Attendances
-                .AsNoTracking()
-                .Include(a => a.Student)
-                .Where(a => a.Student.ClassName == className)
-                .OrderByDescending(a => a.Date)
-                .ThenBy(a => a.Student.LastName)
-                .Select(a => new
-                {
-                    a.Id,
-                    a.StudentId,
-                    StudentName = a.Student.FirstName + " " + a.Student.LastName,
-                    a.Student.ClassName,
-                    a.Date,
-                    a.Status,
-                    a.Notes
-                })
-                .ToListAsync();
+        attendanceGroup.MapGet("/{classId:int}", async (int classId, IAttendanceService attendanceService) =>
+            Results.Ok(await attendanceService.GetAttendanceByClassAsync(classId)))
+            .WithName("GetAttendanceByClass");
 
-            return Results.Ok(attendance);
-        }).WithName("GetAttendanceByClass");
-
-        attendanceGroup.MapPost("", async (AttendanceRequest request, IApplicationDbContext db, IAuditService audit) =>
+        attendanceGroup.MapPost("", async (AttendanceRequest request, IAttendanceService attendanceService) =>
         {
-            var student = await db.Students.FindAsync(request.StudentId);
-            if (student is null)
+            var result = await attendanceService.CreateOrUpdateAsync(request);
+
+            if (result.Status == AttendanceUpsertStatus.StudentNotFound)
             {
-                return Results.BadRequest(new { message = "Student not found." });
+                return Results.BadRequest(new { message = result.ErrorMessage ?? "Student not found." });
             }
 
-            var existing = await db.Attendances
-                .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.Date == request.Date);
-
-            if (existing != null)
+            if (result.Status == AttendanceUpsertStatus.Updated)
             {
-                existing.Status = request.Status;
-                existing.Notes = request.Notes;
-                await db.SaveChangesAsync();
-                await audit.LogAsync("UPDATE", "Attendance", existing.Id.ToString(),
-                    $"Attendance updated for {student.FirstName} {student.LastName} on {existing.Date}.");
-                return Results.Ok(existing);
+                return Results.Ok(result.Attendance);
             }
 
-            var attendance = new Attendance
-            {
-                StudentId = request.StudentId,
-                Date = request.Date,
-                Status = request.Status,
-                Notes = request.Notes
-            };
-
-            db.Attendances.Add(attendance);
-            await db.SaveChangesAsync();
-
-            await audit.LogAsync("CREATE", "Attendance", attendance.Id.ToString(),
-                $"Attendance recorded for {student.FirstName} {student.LastName} on {attendance.Date}.");
-
-            return Results.Created($"/api/attendance/{attendance.Id}", attendance);
+            return Results.Created($"/api/attendance/{result.Attendance?.Id}", result.Attendance);
         })
         .RequireAuthorization("AdminOnly")
         .WithName("CreateOrUpdateAttendance");

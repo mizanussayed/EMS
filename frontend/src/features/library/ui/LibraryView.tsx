@@ -1,35 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Book as BookIcon, User, Clock, Info } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
-import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/useToast';
 import GenericTable, { type Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
-
-interface BookType {
-  id: number;
-  title: string;
-  author: string;
-  isbn: string;
-  category: string;
-  quantity: number;
-  availableQuantity: number;
-  rackNumber: string;
-}
-
-interface IssuedBook {
-  id: number;
-  bookId: number;
-  bookTitle: string;
-  studentId: number;
-  studentName: string;
-  issueDate: string;
-  dueDate: string;
-  returnDate?: string;
-  status: string;
-}
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import type { BookType, IssuedBook } from '../model/library.types';
+import { useCreateBookMutation, useIssueBookMutation, useLibrary, useReturnBookMutation } from '../hooks/useLibrary';
 
 const bookFormFields: FormField[] = [
   { name: 'title', label: 'Book Title', type: 'text', placeholder: 'e.g., A Brief History of Time', required: true, colSpan: 2 },
@@ -41,36 +19,22 @@ const bookFormFields: FormField[] = [
 ];
 
 export default function LibraryView() {
-  const api = useApi();
   const { auth } = useAuth();
+  const { data, isLoading } = useLibrary();
+  const createBookMutation = useCreateBookMutation();
+  const issueBookMutation = useIssueBookMutation();
+  const returnBookMutation = useReturnBookMutation();
   const { toasts, remove, success, error } = useToast();
-  const [books, setBooks] = useState<BookType[]>([]);
-  const [issuedBooks, setIssuedBooks] = useState<IssuedBook[]>([]);
+  const books = data?.books ?? [];
+  const issuedBooks = data?.issuedBooks ?? [];
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
   const [showAddBookModal, setShowAddBookModal] = useState(false);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueFormData, setIssueFormData] = useState({ studentId: '', bookId: '', dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] });
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [booksData, issuesData] = await Promise.all([api.get('/library/books'), api.get('/library/issues')]);
-      setBooks(booksData);
-      setIssuedBooks(issuesData);
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
   const handleAddBook = async (data: any) => {
     try {
-      await api.post('/library/books', { ...data, availableQuantity: data.quantity });
-      await fetchData();
+      await createBookMutation.mutateAsync(data);
       setShowAddBookModal(false);
       success('Book added to library successfully.');
     } catch (err: any) {
@@ -80,8 +44,7 @@ export default function LibraryView() {
 
   const handleIssueBook = async () => {
     try {
-      await api.post('/library/issues', { studentId: parseInt(issueFormData.studentId), bookId: parseInt(issueFormData.bookId), issueDate: new Date().toISOString(), dueDate: new Date(issueFormData.dueDate).toISOString(), status: 'Issued' });
-      await fetchData();
+      await issueBookMutation.mutateAsync({ studentId: parseInt(issueFormData.studentId), bookId: parseInt(issueFormData.bookId), issueDate: new Date().toISOString(), dueDate: new Date(issueFormData.dueDate).toISOString(), status: 'Issued' });
       setShowIssueModal(false);
       success('Book issued successfully.');
     } catch (err: any) {
@@ -91,8 +54,7 @@ export default function LibraryView() {
 
   const handleReturnBook = async (id: number) => {
     try {
-      await api.put(`/library/issues/${id}/return`, {});
-      await fetchData();
+      await returnBookMutation.mutateAsync(id);
       success('Book returned successfully.');
     } catch (err: any) {
       error(err.message);
@@ -131,7 +93,7 @@ export default function LibraryView() {
             onAdd={() => setShowAddBookModal(true)}
             addLabel="Add Book"
             onView={(book) => { setIssueFormData({ ...issueFormData, bookId: String(book.id) }); setShowIssueModal(true); }}
-            isLoading={loading && books.length === 0}
+            isLoading={isLoading}
             canAdd={auth?.role === 'admin'}
             canView={auth?.role === 'admin'}
           />

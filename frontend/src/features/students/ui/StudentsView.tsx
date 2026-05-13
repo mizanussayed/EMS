@@ -1,124 +1,140 @@
-import { ChangeEvent, useEffect, useRef, useState, useCallback } from 'react';
+import { ChangeEvent, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Phone, BookOpen, User, Calendar, MapPin, Upload, Download, FileText, Search, Filter, X } from 'lucide-react';
-import { formatDateForInput, formatDateForAPI, formatDateForDisplay } from '@/utils/dateUtils';
-import type { Student } from '../model/student.types';
-import GenericForm, { FormField } from '@/components/GenericForm';
-import { useApi } from '@/hooks/useApi';
+import { formatDateForDisplay } from '@/utils/dateUtils';
+import type { Student, StudentInput } from '../model/student.types';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useConfirm, useToast } from '@/hooks/useToast';
 import GenericTable, { Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
-
-interface ApiStudent {
-  id: number;
-  firstName: string;
-  lastName: string;
-  admissionNumber?: string;
-  className?: string;
-  section?: string;
-  gender?: string;
-  dateOfBirth?: string;
-  active: boolean;
-}
-
-const mapStudentFromApi = (student: ApiStudent): Student => ({
-  id: student.id,
-  rollNo: student.admissionNumber ?? `STU-${student.id}`,
-  name: `${student.firstName} ${student.lastName}`.trim(),
-  className: student.className ?? 'Unassigned',
-  section: student.section ?? '',
-  email: '',
-  phone: '',
-  parent: '',
-  parentPhone: '',
-  dateOfBirth: student.dateOfBirth ?? '',
-  admissionDate: '',
-  status: student.active ? 'Active' : 'Inactive',
-  attendance: '-',
-  admissionNumber: student.admissionNumber ?? '',
-  gender: student.gender ?? '',
-});
-
-const formFields: FormField[] = [
-  { name: 'firstName', label: 'First Name', type: 'text', placeholder: 'John', required: true },
-  { name: 'lastName', label: 'Last Name', type: 'text', placeholder: 'Doe', required: true },
-  { name: 'admissionNumber', label: 'Roll/Admission No', type: 'text', placeholder: 'STU-001' },
-  { name: 'gender', label: 'Gender', type: 'select', options: [{ label: 'Male', value: 'Male' }, { label: 'Female', value: 'Female' }] },
-  { name: 'className', label: 'Class', type: 'text', placeholder: 'Grade 10A', required: true },
-  { name: 'section', label: 'Section', type: 'text', placeholder: 'A' },
-  { name: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
-  { name: 'email', label: 'Email Address', type: 'email' },
-  { name: 'phone', label: 'Student Phone', type: 'tel' },
-  { name: 'parent', label: 'Parent Name', type: 'text' },
-  { name: 'parentPhone', label: 'Parent Phone', type: 'tel' },
-  { name: 'address', label: 'Address', type: 'textarea', colSpan: 2 },
-];
+import { useCreateStudentMutation, useUpdateStudentMutation, useDeleteStudentMutation, useStudents } from '../hooks/useStudents';
+import StudentForm, { emptyStudentInput } from './StudentForm';
+import { useClasses } from '@/features/classes/hooks/useClasses';
 
 export default function StudentsView() {
-  const api = useApi();
   const navigate = useNavigate();
   const { auth } = useAuth();
-  const { toasts, remove, success, error } = useToast();
+  const { toasts, remove, success, error: showError } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('All Classes');
   const [filterSection, setFilterSection] = useState('All Sections');
   const [filterShift, setFilterShift] = useState('All Shifts');
   const [filterBadge, setFilterBadge] = useState('All Badges');
-  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [formData, setFormData] = useState<StudentInput>(emptyStudentInput);
+
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const createMutation = useCreateStudentMutation();
+  const updateMutation = useUpdateStudentMutation();
+  const deleteMutation = useDeleteStudentMutation();
 
-  const fetchStudents = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.get('/students');
-      setStudents(data.map(mapStudentFromApi));
-    } catch (err: any) {
-      console.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
+  const { data = [], isLoading, error } = useStudents();
+  const { data: classes = [], error: classesError } = useClasses();
 
-  useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  const handleSubmit = async (formData: any) => {
-    try {
-      const payload = { ...formData, dateOfBirth: formatDateForAPI(formData.dateOfBirth) };
-      if (modalMode === 'add') {
-        await api.post('/students', payload);
-      } else {
-        await api.put(`/students/${selectedStudent?.id}`, payload);
+  const classOptions = useMemo(
+    () => {
+      if (classes.length > 0) {
+        return classes.map((item) => ({
+          label: item.section ? `${item.name} - ${item.section}` : item.name,
+          value: String(item.id),
+        }));
       }
-      await fetchStudents();
-      setShowModal(false);
-      success(modalMode === 'add' ? 'Student registered successfully.' : 'Student updated successfully.');
-    } catch (err: any) {
-      error(err.message);
+
+      const optionsByClassId = new Map<number, string>();
+      data.forEach((student) => {
+        if (!student.classId || !student.className) {
+          return;
+        }
+
+        optionsByClassId.set(
+          student.classId,
+          student.sectionName ? `${student.className} - ${student.sectionName}` : student.className
+        );
+      });
+
+      return Array.from(optionsByClassId, ([value, label]) => ({
+        label,
+        value: String(value),
+      }));
+    },
+    [classes, data]
+  );
+
+  const classFilterOptions = useMemo(
+    () => {
+      const classNames = classes.length > 0
+        ? classes.map((item) => item.name)
+        : data.map((student) => student.className);
+
+      return Array.from(new Set(classNames.filter(Boolean))).sort();
+    },
+    [classes, data]
+  );
+
+  const resetForm = () => {
+    setSelectedStudent(null);
+    setFormData(emptyStudentInput);
+    setModalMode('add');
+    setShowModal(false);
+  };
+
+  const normalizeStudentInput = (input: StudentInput): StudentInput => ({
+    ...input,
+    classId: Number(input.classId) || 0,
+    sectionId: input.sectionId ? Number(input.sectionId) : 0,
+    admissionNumber: input.admissionNumber?.trim() || undefined,
+    gender: input.gender?.trim() || undefined,
+    email: input.email?.trim() || undefined,
+    parent: input.parent?.trim() || undefined,
+    parentPhone: input.parentPhone?.trim() || undefined,
+    dateOfBirth: input.dateOfBirth || undefined,
+    admissionDate: input.admissionDate || undefined,
+    address: input.address?.trim() || undefined,
+  });
+
+  const handleSubmit = async (input: StudentInput) => {
+    const payload = normalizeStudentInput(input);
+
+    try {
+      if (modalMode === 'edit' && selectedStudent) {
+        await updateMutation.mutateAsync({ id: selectedStudent.id, payload });
+        success('Student updated successfully.');
+      } else {
+        await createMutation.mutateAsync(payload);
+        success('Student registered successfully.');
+      }
+
+      resetForm();
+    } catch (mutationError) {
+      showError(mutationError instanceof Error ? mutationError.message : 'Unable to save student.');
     }
   };
 
-  const handleDelete = async (student: Student) => {
-    const ok = await confirm(`This will permanently remove ${student.name} from the system.`, 'Delete Student?');
-    if (!ok) return;
+  const handleDelete = async (item: Student) => {
+    const confirmed = await confirm(`This will permanently remove ${item.name} from the system.`, 'Delete Student?');
+    if (!confirmed) {
+      return;
+    }
+
     try {
-      await api.delete(`/students/${student.id}`);
-      await fetchStudents();
+      await deleteMutation.mutateAsync(item.id);
       success('Student deleted successfully.');
-    } catch (err: any) {
-      error(err.message);
+      if (selectedStudent?.id === item.id) {
+        resetForm();
+      }
+    } catch (mutationError) {
+      showError(mutationError instanceof Error ? mutationError.message : 'Unable to delete student.');
     }
   };
+
 
   const escapeCsv = (value: string | number | undefined) => {
     const text = String(value ?? '');
@@ -139,8 +155,23 @@ export default function StudentsView() {
 
   const handleExportCsv = () => {
     const csv = [
-      ['Admission Number', 'Name', 'Class', 'Section', 'Gender', 'Date of Birth', 'Status'],
-      ...filteredStudents.map((student) => [student.rollNo, student.name, student.className, student.section ?? '', student.gender ?? '', student.dateOfBirth ?? '', student.status]),
+      ['Class Roll No', 'Admission Number', 'Name', 'Gender', 'Class', 'Section', 'Email',
+       'Parent', 'Parent Phone', 'Date of Birth', 'Admission Date', 'Address', 'Active'],
+      ...filteredStudents.map((student) => [
+        student.classRollNo,
+        student.admissionNumber ?? '',
+        student.name,
+        student.gender ?? '',
+        student.className,
+        student.sectionName ?? '',
+        student.email ?? '',
+        student.parent ?? '',
+        student.parentPhone ?? '',
+        student.dateOfBirth ?? '',
+        student.admissionDate ?? '',
+        student.address ?? '',
+        student.isActive? 'Active' : 'Inactive',
+      ]),
     ].map((row) => row.map(escapeCsv).join(',')).join('\n');
 
     downloadFile('students.csv', csv, 'text/csv;charset=utf-8');
@@ -150,17 +181,23 @@ export default function StudentsView() {
   const handleExportPdf = () => {
     const rows = filteredStudents.map((student) => `
           <tr>
-            <td>${student.rollNo}</td>
+            <td>${student.classRollNo}</td>
             <td>${student.name}</td>
-            <td>${student.className}</td>
-            <td>${student.section ?? ''}</td>
             <td>${student.gender ?? ''}</td>
-            <td>${student.status}</td>
+            <td>${student.className}</td>
+            <td>${student.sectionName ?? ''}</td>
+            <td>${student.email ?? ''}</td>
+            <td>${student.parent ?? ''}</td>
+            <td>${student.parentPhone ?? ''}</td>
+            <td>${formatDateForDisplay(student.dateOfBirth)}</td>
+            <td>${formatDateForDisplay(student.admissionDate)}</td>
+            <td>${student.address ?? ''}</td>
+            <td>${student.isActive ? 'Active' : 'Inactive'}</td>
           </tr>`).join('');
 
     const printWindow = window.open('', '_blank', 'width=1000,height=800');
     if (!printWindow) {
-      error('Popup blocked. Please allow popups to export PDF.');
+      showError('Popup blocked. Please allow popups to export PDF.');
       return;
     }
 
@@ -181,11 +218,17 @@ export default function StudentsView() {
           <table>
             <thead>
               <tr>
-                <th>Admission Number</th>
+                <th>Class Roll No</th>
                 <th>Name</th>
+                <th>Gender</th>
                 <th>Class</th>
                 <th>Section</th>
-                <th>Gender</th>
+                <th>Email</th>
+                <th>Parent</th>
+                <th>Parent Phone</th>
+                <th>Date of Birth</th>
+                <th>Admission Date</th>
+                <th>Address</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -235,7 +278,7 @@ export default function StudentsView() {
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
       if (lines.length < 2) {
-        error('CSV file must include a header row and at least one student.');
+        showError('CSV file must include a header row and at least one student.');
         return;
       }
 
@@ -251,43 +294,81 @@ export default function StudentsView() {
         const fullName = value('name', 'studentname');
         const [firstNameFromFull, ...lastNameParts] = fullName.split(' ').filter(Boolean);
         const payload = {
-          firstName: value('firstname') || firstNameFromFull,
+          name: value('name') || firstNameFromFull,
           lastName: value('lastname') || lastNameParts.join(' ') || '-',
-          admissionNumber: value('admissionnumber', 'rollno', 'roll', 'id'),
-          className: value('classname', 'class'),
-          section: value('section'),
+          classRollNo: value('classrollno', 'rollno', 'roll', 'id'),
+          classId: parseInt(value('classid', 'class'), 10) || 0,
+          sectionId: parseInt(value('sectionid', 'section'), 10) || 0,
           gender: value('gender'),
-          dateOfBirth: value('dateofbirth', 'dob') || null,
-          active: value('status').toLowerCase() !== 'inactive',
+          email: value('email'),
+          parent: value('parent'),
+          parentPhone: value('parentphone') || '',
+          dateOfBirth: value('dateofbirth') || '',
+          admissionDate: value('admissiondate') || '',
+          address: value('address'),
+          isActive: value('status').toLowerCase() === 'active',
         };
 
-        if (!payload.firstName || !payload.className) {
+        if (!payload.name || !payload.classId) {
           continue;
         }
 
-        await api.post('/students', payload);
+        await createMutation.mutateAsync(payload);
         imported += 1;
       }
 
-      await fetchStudents();
       success(`${imported} student${imported === 1 ? '' : 's'} imported.`);
     } catch (err: any) {
-      error(err.message || 'Unable to import students.');
+      showError(err.message || 'Unable to import students.');
     }
   };
 
+  const handleEdit = (student: Student) => {
+    setSelectedStudent(student);
+    setFormData({
+      classRollNo: student.classRollNo,
+      name: student.name,
+      admissionNumber: student.admissionNumber ?? '',
+      classId: student.classId,
+      sectionId: student.sectionId,
+      gender: student.gender ?? '',
+      dateOfBirth: student.dateOfBirth ?? '',
+      admissionDate: student.admissionDate ?? '',
+      email: student.email ?? '',
+      parent: student.parent ?? '',
+      parentPhone: student.parentPhone ?? '',
+      address: student.address ?? '',
+      isActive: student.isActive,
+    });
+  };
+
   const columns: Column<Student>[] = [
-    { header: 'Student Info', accessor: (student) => <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">{student.name.charAt(0)}</div><div><div className="font-bold text-gray-900">{student.name}</div><div className="text-xs text-gray-400">ID: {student.rollNo}</div></div></div> },
-    { header: 'Class & Section', accessor: (student) => <div><span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-bold mr-1">{student.className}</span>{student.section && <span className="px-2 py-1 bg-teal-50 text-teal-600 rounded text-xs font-bold">{student.section}</span>}</div> },
+    { header: 'Student Info', accessor: (student) => <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">{student.name.charAt(0)}</div>
+        <div>
+          <div className="font-bold text-gray-900">{`${student.name}`}</div>
+          <div className="text-xs text-gray-400">ID: {student.classRollNo}</div>
+      </div>
+    </div> },
+    { header: 'Class & Section', accessor: (student) => <div>
+      <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-bold mr-1">{student.className}</span>
+      {student.sectionName && <span className="px-2 py-1 bg-teal-50 text-teal-600 rounded text-xs font-bold">{student.sectionName}</span>}
+      </div> 
+    },
     { header: 'Shift', accessor: () => <span className="px-2 py-1 bg-amber-50 text-amber-600 rounded text-xs font-bold">Day</span> },
     { header: 'Badge', accessor: () => <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-xs font-bold">Resident</span> },
-    { header: 'Contact', accessor: (student) => <div className="space-y-1"><div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium"><Phone className="w-3 h-3 text-gray-400" /><span>{student.phone || student.parentPhone || 'N/A'}</span></div></div> },
+    { header: 'Contact', accessor: (student) => <div className="space-y-1">
+      <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+      <Phone className="w-3 h-3 text-gray-400" /><span>{student.parentPhone || 'N/A'}</span>
+      </div>
+      </div> 
+    },
   ];
 
-  const filteredStudents = students.filter((student) => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) || student.rollNo.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredStudents = data.filter((student) => {
+    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) || student.classRollNo?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = filterClass === 'All Classes' || student.className === filterClass;
-    const matchesSection = filterSection === 'All Sections' || student.section === filterSection;
+    const matchesSection = filterSection === 'All Sections' || student.sectionName === filterSection;
     return matchesSearch && matchesClass && matchesSection;
   });
 
@@ -297,8 +378,9 @@ export default function StudentsView() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 w-full">
         <select value={filterClass} onChange={(event) => setFilterClass(event.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
           <option>All Classes</option>
-          <option>Grade 1</option>
-          <option>Grade 2</option>
+          {classFilterOptions.map((className) => (
+            <option key={className} value={className}>{className}</option>
+          ))}
         </select>
         <select value={filterSection} onChange={(event) => setFilterSection(event.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
           <option>All Sections</option>
@@ -336,14 +418,25 @@ export default function StudentsView() {
   );
 
   const stats = [
-    { label: 'Total Students', value: students.length },
-    { label: 'Active', value: students.filter((student) => student.status === 'Active').length, color: 'text-green-600' },
-    { label: 'Inactive', value: students.filter((student) => student.status === 'Inactive').length, color: 'text-red-600' },
+    { label: 'Total Students', value: data.length },
+    { label: 'Active', value: data.filter((student) => student.isActive).length, color: 'text-green-600' },
+    { label: 'Inactive', value: data.filter((student) => !student.isActive).length, color: 'text-red-600' },
     { label: 'Avg Attendance', value: '94%', color: 'text-blue-600' },
   ];
 
   return (
     <div className="p-6">
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error instanceof Error ? error.message : 'Unable to load students.'}
+        </div>
+      )}
+      {classesError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {classesError instanceof Error ? classesError.message : 'Unable to load classes.'}
+        </div>
+      )}
+
       <GenericTable
         title="Student Management"
         description="View and manage student records, admissions and information"
@@ -354,20 +447,26 @@ export default function StudentsView() {
         onSearchChange={setSearchTerm}
         customFilters={customFilters}
         topActions={topActions}
-        onAdd={() => { setModalMode('add'); setSelectedStudent(null); setShowModal(true); }}
+        onAdd={() => { setModalMode('add'); setSelectedStudent(null); setFormData(emptyStudentInput); setShowModal(true); }}
         addLabel="Add Student"
         onView={(student) => navigate(`/students/${student.id}`)}
-        onEdit={(student) => { setSelectedStudent(student); setModalMode('edit'); setShowModal(true); }}
+        onEdit={(student) => { handleEdit(student); setModalMode('edit'); setShowModal(true); }}
         onDelete={handleDelete}
-        isLoading={loading && students.length === 0}
+        isLoading={isLoading && data.length === 0}
         canAdd={auth?.role.toLowerCase() === 'admin'}
         canEdit={auth?.role.toLowerCase() === 'admin'}
         canDelete={auth?.role.toLowerCase() === 'admin'}
       />
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={modalMode === 'add' ? 'Register New Student' : 'Edit Student Details'}>
-        <GenericForm fields={formFields} initialData={selectedStudent ? { firstName: selectedStudent.name.split(' ')[0], lastName: selectedStudent.name.split(' ').slice(1).join(' '), ...selectedStudent, dateOfBirth: formatDateForInput(selectedStudent.dateOfBirth) } : {}} onSubmit={handleSubmit} onCancel={() => setShowModal(false)} submitLabel={modalMode === 'add' ? 'Register Student' : 'Update Student'} />
-      </Modal>
+      <StudentForm
+        isOpen={showModal}
+        mode={modalMode}
+        initialData={formData}
+        classOptions={classOptions}
+        isLoading={isSaving}
+        onSubmit={handleSubmit}
+        onClose={resetForm}
+      />
 
       <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Student Profile Details">
         {selectedStudent && (
@@ -376,18 +475,17 @@ export default function StudentsView() {
               <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">{selectedStudent.name.charAt(0)}</div>
               <div>
                 <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedStudent.name}</h3>
-                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedStudent.status} Student</p>
+                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedStudent.isActive ? 'Active' : 'Inactive'} Student</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
-                { icon: User, label: 'Admission No', value: selectedStudent.rollNo },
+                { icon: User, label: 'Admission No', value: selectedStudent.admissionNumber || 'N/A' },
                 { icon: BookOpen, label: 'Current Class', value: selectedStudent.className },
                 { icon: Calendar, label: 'Date of Birth', value: formatDateForDisplay(selectedStudent.dateOfBirth) },
                 { icon: User, label: 'Gender', value: selectedStudent.gender || 'N/A' },
                 { icon: Mail, label: 'Email Address', value: selectedStudent.email || 'N/A' },
-                { icon: Phone, label: 'Phone Number', value: selectedStudent.phone || 'N/A' },
                 { icon: User, label: 'Parent/Guardian', value: selectedStudent.parent || 'N/A' },
                 { icon: Phone, label: 'Parent Phone', value: selectedStudent.parentPhone || 'N/A' },
               ].map((item, index) => (

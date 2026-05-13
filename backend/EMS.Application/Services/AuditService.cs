@@ -5,7 +5,7 @@ using System.Security.Claims;
 
 namespace EMS.Application.Services;
 
-public class AuditService(IApplicationDbContext db, IHttpContextAccessor httpContextAccessor) : IAuditService
+internal sealed class AuditService(IApplicationDbContext db, IHttpContextAccessor httpContextAccessor) : IAuditService
 {
     public async Task LogAsync(string action, string entityName, string? entityId, string? details)
     {
