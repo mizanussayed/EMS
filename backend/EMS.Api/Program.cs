@@ -3,6 +3,7 @@ using EMS.Application;
 using EMS.Application.Options;
 using EMS.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
@@ -41,6 +42,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.Zero // no extra tolerance
         };
     });
+
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // ----------------------
 // Authorization Policies
@@ -108,7 +120,7 @@ using (var scope = app.Services.CreateScope())
         seeder.Seed();
     }
 }
-
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 
 app.UseCors();
@@ -138,6 +150,12 @@ app.MapLibraryEndpoints();
 app.MapEventEndpoints();
 app.MapAttendanceEndpoints();
 app.MapAuditEndpoints();
+
+app.MapGet("", () =>
+     Results.Content("Welcome to the EMS API!", "text/plain"))
+    .WithName("Home");
+
+
 app.MapGet("/api/health", () =>
     Results.Ok(new { status = "Healthy" }))
     .WithName("Health");
