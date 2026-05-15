@@ -6,6 +6,7 @@ import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import StatusBadge from '@/components/StatusBadge';
 import type { EventItem } from '../model/event.types';
 import { useCreateEventMutation, useDeleteEventMutation, useEvents, useUpdateEventMutation } from '../hooks/useEvents';
 
@@ -77,9 +78,7 @@ export default function EventsView() {
     <div key={event.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl transition-all duration-300">
       <div className="p-6">
         <div className="flex justify-between items-start mb-4">
-          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${event.type === 'Holiday' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-            {event.type}
-          </span>
+          <StatusBadge status={event.type} variant={event.type === 'Holiday' ? 'error' : 'info'} />
           <div className="flex gap-2">
             <button onClick={() => { setSelectedEvent(event); setShowViewModal(true); }} className="p-1.5 hover:bg-gray-50 rounded-lg transition-colors text-gray-400 hover:text-blue-600">
               <Eye className="w-4 h-4" />

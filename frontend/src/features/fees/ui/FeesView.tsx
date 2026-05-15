@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { DollarSign, User, Settings } from 'lucide-react';
 import GenericTable, { type Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
+import TabNavigation from '@/components/TabNavigation';
+import StatusBadge from '@/components/StatusBadge';
 import { RoleGuard } from '@/app/guards/RoleGuard';
 import FeeConfigurationView from './FeeConfigurationView';
 import type { FeeRecord } from '../model/fee.types';
@@ -32,7 +34,7 @@ export default function FeesView() {
     { header: 'Month', accessor: (record) => <span className="px-3 py-1 bg-gray-50 text-gray-700 rounded-lg text-xs font-bold uppercase tracking-widest border border-gray-100">{record.month}</span> },
     { header: 'Total Amount', accessor: (record) => <span className="font-bold">${record.amount.toLocaleString()}</span> },
     { header: 'Paid', accessor: (record) => <span className="font-bold text-green-600">${record.paidAmount.toLocaleString()}</span> },
-    { header: 'Status', accessor: (record) => <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${record.status === 'Paid' ? 'bg-green-50 text-green-700 border-green-100' : record.status === 'Partially Paid' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-red-50 text-red-700 border-red-100'}`}>{record.status}</span> },
+    { header: 'Status', accessor: (record) => <StatusBadge status={record.status} /> },
   ];
 
   const totalCollected = data.reduce((accumulator, record) => accumulator + record.paidAmount, 0);
@@ -49,12 +51,15 @@ export default function FeesView() {
   return (
     <RoleGuard allowedRoles={['admin']}>
       <div className="p-6">
-        <div className="mb-6 border-b border-gray-100">
-          <div className="flex gap-4">
-            <button onClick={() => setActiveTab('records')} className={`px-6 py-4 font-bold uppercase text-xs tracking-widest border-b-2 transition-all ${activeTab === 'records' ? 'border-[#2D6CDF] text-[#2D6CDF]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Fee Records</button>
-            <button onClick={() => setActiveTab('config')} className={`px-6 py-4 font-bold uppercase text-xs tracking-widest border-b-2 transition-all flex items-center gap-2 ${activeTab === 'config' ? 'border-[#2D6CDF] text-[#2D6CDF]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><Settings className="w-4 h-4" />Configuration</button>
-          </div>
-        </div>
+        <TabNavigation 
+          tabs={[
+            { key: 'records', label: 'Fee Records' },
+            { key: 'config', label: 'Configuration', icon: <Settings className="w-4 h-4" /> },
+          ]}
+          activeTab={activeTab}
+          onChange={(key) => setActiveTab(key as 'records' | 'config')}
+          className="mb-6"
+        />
 
         {activeTab === 'records' && (
           <GenericTable
@@ -71,7 +76,7 @@ export default function FeesView() {
           />
         )}
 
-        {activeTab === 'config' && <FeeConfigurationView onConfigUpdate={fetchFees} />}
+        {activeTab === 'config' && <FeeConfigurationView onConfigUpdate={useFees} />}
 
         <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Process Payment">
           {selectedRecord && (

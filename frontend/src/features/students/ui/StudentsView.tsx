@@ -9,6 +9,8 @@ import GenericTable, { Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import FilterBar from '@/components/FilterBar';
+import StatusBadge from '@/components/StatusBadge';
 import { useCreateStudentMutation, useUpdateStudentMutation, useDeleteStudentMutation, useStudents } from '../hooks/useStudents';
 import StudentForm, { emptyStudentInput } from './StudentForm';
 import { useClasses } from '@/features/classes/hooks/useClasses';
@@ -373,39 +375,42 @@ export default function StudentsView() {
   });
 
   const customFilters = (
-    <div className="flex flex-col md:flex-row md:items-center gap-4">
-      <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold border border-indigo-100 shrink-0"><Filter className="w-4 h-4" /> Filters</div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 w-full">
-        <select value={filterClass} onChange={(event) => setFilterClass(event.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
+    <FilterBar
+      searchTerm={searchTerm}
+      onSearchChange={setSearchTerm}
+      searchPlaceholder="Search by name, ID..."
+      className="p-0 bg-transparent border-0 shadow-none"
+    >
+      <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
+        <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold border border-indigo-100 shrink-0">
+          <Filter className="w-4 h-4" /> Filters
+        </div>
+        <select value={filterClass} onChange={(event) => setFilterClass(event.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
           <option>All Classes</option>
           {classFilterOptions.map((className) => (
             <option key={className} value={className}>{className}</option>
           ))}
         </select>
-        <select value={filterSection} onChange={(event) => setFilterSection(event.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
+        <select value={filterSection} onChange={(event) => setFilterSection(event.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
           <option>All Sections</option>
           <option>A</option>
           <option>B</option>
         </select>
-        <select value={filterShift} onChange={(event) => setFilterShift(event.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
+        <select value={filterShift} onChange={(event) => setFilterShift(event.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
           <option>All Shifts</option>
           <option>Morning</option>
           <option>Day</option>
         </select>
-        <select value={filterBadge} onChange={(event) => setFilterBadge(event.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
+        <select value={filterBadge} onChange={(event) => setFilterBadge(event.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
           <option>All Badges</option>
           <option>Resident</option>
           <option>Non-Resident</option>
         </select>
-        <div className="relative w-full flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by name, ID..." className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium" />
-          </div>
-          <button onClick={() => { setSearchTerm(''); setFilterClass('All Classes'); setFilterSection('All Sections'); setFilterShift('All Shifts'); setFilterBadge('All Badges'); }} className="p-2.5 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
-        </div>
+        <button onClick={() => { setSearchTerm(''); setFilterClass('All Classes'); setFilterSection('All Sections'); setFilterShift('All Shifts'); setFilterBadge('All Badges'); }} className="p-2.5 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-xl transition-colors">
+          <X className="w-5 h-5" />
+        </button>
       </div>
-    </div>
+    </FilterBar>
   );
 
   const topActions = (
@@ -468,14 +473,19 @@ export default function StudentsView() {
         onClose={resetForm}
       />
 
-      <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Student Profile Details">
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        title="Student Profile Details"
+        subtitle="Review profile details and current status"
+      >
         {selectedStudent && (
           <div className="space-y-8">
             <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-2xl border border-gray-100">
               <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">{selectedStudent.name.charAt(0)}</div>
               <div>
                 <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedStudent.name}</h3>
-                <p className="text-[#2D6CDF] font-bold uppercase tracking-wider text-sm">{selectedStudent.isActive ? 'Active' : 'Inactive'} Student</p>
+                <StatusBadge status={selectedStudent.isActive ? 'Active' : 'Inactive'} />
               </div>
             </div>
 

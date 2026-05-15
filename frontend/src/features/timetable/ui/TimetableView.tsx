@@ -1,6 +1,7 @@
-import { type FormEvent, useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { Clock, Edit, User, MapPin, Plus, Printer, Trash2 } from 'lucide-react';
 import Modal from '@/components/Modal';
+import SectionHeader from '@/components/SectionHeader';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useToast, useConfirm } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/Toast';
@@ -10,9 +11,36 @@ import { useSubjects } from '@/features/subjects/hooks/useSubjects';
 import { useTeachers } from '@/features/teachers/hooks/useTeachers';
 import type { StudentClass, TimetableEntry, TimetableInput } from '../model/timetable.types';
 import { useCreateTimetableMutation, useDeleteTimetableMutation, useTimetableClasses, useTimetableEntries, useUpdateTimetableMutation } from '../hooks/useTimetable';
+import { BUTTON_STYLES, INPUT_STYLES } from '@/styles/componentStyles';
 
-const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
 const days = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+
+const splitClassNames = (classes: string) =>
+  classes
+    .split(/[,;|/]/)
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+const toMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map((value) => Number(value));
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return (hours * 60) + minutes;
+};
+
+const addHour = (time: string) => {
+  const minutes = toMinutes(time);
+  if (!Number.isFinite(minutes) || minutes === Number.MAX_SAFE_INTEGER) {
+    return '09:00';
+  }
+
+  const next = Math.min(minutes + 60, (23 * 60) + 59);
+  const hoursPart = String(Math.floor(next / 60)).padStart(2, '0');
+  const minutesPart = String(next % 60).padStart(2, '0');
+  return `${hoursPart}:${minutesPart}`;
+};
 
 type TimetableFormData = Omit<TimetableInput, 'className'>;
 
@@ -39,18 +67,41 @@ export default function TimetableView() {
   const [selectedEntry, setSelectedEntry] = useState<TimetableEntry | null>(null);
   const [formData, setFormData] = useState<TimetableFormData>(emptyTimetableForm);
   const isAdmin = auth?.role.toLowerCase() === 'admin';
+  const filteredSubjects = useMemo(() => {
+    const normalizedSelectedClass = selectedClass.trim().toLowerCase();
+
+    debugger;
+    if (!normalizedSelectedClass) {
+      return subjects;
+    }
+ 
+
+    return subjects.filter((subject) => {
+      const subjectClasses = subject.classes?.trim();
+      if (!subjectClasses) {
+        return true;
+      }
+
+      const allowedClasses = splitClassNames(subjectClasses);
+      return allowedClasses.some((className) => className === normalizedSelectedClass);
+    });
+  }, [selectedClass, subjects]);
+
   const subjectOptions = useMemo(
-    () => subjects.map((subject) => ({ label: `${subject.name} (${subject.code})`, value: subject.name })),
-    [subjects]
+    () => filteredSubjects.map((subject) => ({ label: `${subject.name} (${subject.code})`, value: subject.name })),
+    [filteredSubjects]
   );
+
   const subjectTeacherByName = useMemo(
-    () => new Map(subjects.map((subject) => [subject.name, subject.teacher ?? ''])),
-    [subjects]
+    () => new Map(filteredSubjects.map((subject) => [subject.name, subject.teacher ?? ''])),
+    [filteredSubjects]
   );
+
   const teacherOptions = useMemo(
     () => teachers.map((teacher) => ({ label: teacher.name, value: teacher.name })),
     [teachers]
   );
+
   const mappedTeacherName = subjectTeacherByName.get(formData.subjectName) ?? '';
   const teacherSelectOptions = useMemo(() => {
     if (!mappedTeacherName || teacherOptions.some((teacher) => teacher.value === mappedTeacherName)) {
@@ -72,6 +123,18 @@ export default function TimetableView() {
   );
   const mappedRoom = selectedSchoolClass?.room?.trim() ?? '';
   const { data: entries = [], isLoading } = useTimetableEntries(selectedClass);
+  const timeSlots = useMemo(() => {
+    const uniqueStartTimes = Array.from(new Set(entries.map((entry) => entry.startTime).filter(Boolean)));
+    if (uniqueStartTimes.length === 0) {
+      return ['08:00'];
+    }
+
+    return uniqueStartTimes.sort((left, right) => toMinutes(left) - toMinutes(right));
+  }, [entries]);
+  const suggestedTimes = useMemo(() => {
+    const allTimes = new Set<string>([...timeSlots, ...entries.map((entry) => entry.endTime).filter(Boolean)]);
+    return Array.from(allTimes).sort((left, right) => toMinutes(left) - toMinutes(right));
+  }, [entries, timeSlots]);
   const createTimetableMutation = useCreateTimetableMutation(selectedClass);
   const updateTimetableMutation = useUpdateTimetableMutation(selectedClass);
   const deleteTimetableMutation = useDeleteTimetableMutation(selectedClass);
@@ -104,9 +167,26 @@ export default function TimetableView() {
       });
       return;
     }
-
-    setFormData(emptyTimetableForm);
   }, [selectedEntry, showModal]);
+
+  useEffect(() => {
+    if (selectedEntry || !showModal) {
+      return;
+    }
+
+    if (!formData.subjectName) {
+      return;
+    }
+
+    const isCurrentSubjectVisible = filteredSubjects.some((subject) => subject.name === formData.subjectName);
+    if (!isCurrentSubjectVisible) {
+      setFormData((current) => ({
+        ...current,
+        subjectName: '',
+        teacherName: '',
+      }));
+    }
+  }, [filteredSubjects, formData.subjectName, selectedEntry, showModal]);
 
   const handleSubjectChange = (subjectName: string) => {
     const teacherName = subjectTeacherByName.get(subjectName) ?? '';
@@ -124,9 +204,12 @@ export default function TimetableView() {
       error('Select a class before creating a timetable entry.');
       return;
     }
-
     if (!formData.subjectName || !formData.teacherName || !formData.dayOfWeek || !formData.startTime || !formData.endTime || !formData.room.trim()) {
       error('Complete all timetable fields before saving.');
+      return;
+    }
+    if (toMinutes(formData.endTime) <= toMinutes(formData.startTime)) {
+      error('End time must be later than start time.');
       return;
     }
 
@@ -159,8 +242,7 @@ export default function TimetableView() {
   };
 
   const openCreateModal = (dayOfWeek = 'Monday', startTime = '08:00') => {
-    const startIndex = timeSlots.indexOf(startTime);
-    const endTime = timeSlots[startIndex + 1] ?? timeSlots[startIndex] ?? '09:00';
+    const endTime = addHour(startTime);
 
     setModalMode('add');
     setSelectedEntry(null);
@@ -252,6 +334,13 @@ export default function TimetableView() {
 
   return (
     <div className="p-6">
+      <div className="mb-6">
+        <SectionHeader
+          icon={Clock}
+          title="Timetable Management"
+          subtitle="Create and manage class schedules"
+        />
+      </div>
       {classesError && (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {classesError instanceof Error ? classesError.message : 'Unable to load classes.'}
@@ -267,11 +356,7 @@ export default function TimetableView() {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-gray-900 font-black text-3xl mb-1">Class Timetable</h1>
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Academic Schedule Planner</p>
-        </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-end mb-8 gap-4">
         <div className="flex gap-3">
           {classes.length > 0 && (
             <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className="px-6 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 transition-all font-bold text-gray-700 shadow-sm">
@@ -280,13 +365,13 @@ export default function TimetableView() {
             </select>
           )}
           {selectedClass && (
-            <button onClick={handlePrint} className="px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 font-black shadow-sm transition-all active:scale-95">
-              <Printer className="w-5 h-5 text-[#2D6CDF]" />
+            <button onClick={handlePrint} className={`${BUTTON_STYLES.success} flex items-center justify-center gap-2`}>
+              <Printer className="w-5 h-5 text-white" />
               Print
             </button>
           )}
           {isAdmin && selectedClass && (
-            <button onClick={handleAddClick} className="px-6 py-3 bg-[#2D6CDF] text-white rounded-xl hover:bg-[#1a4ba8] flex items-center justify-center gap-2 font-black shadow-xl shadow-[#2D6CDF]/20 transition-all active:scale-95">
+            <button onClick={handleAddClick}  className={`${BUTTON_STYLES.primary} flex items-center justify-center gap-2`}>
               <Plus className="w-5 h-5" />
               Add Entry
             </button>
@@ -299,14 +384,14 @@ export default function TimetableView() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-gray-50/50">
-                <th className="p-6 text-xs font-black uppercase text-gray-400 tracking-widest border-r border-gray-100 w-32">Time</th>
+                <th className="p-3 text-xs font-black uppercase text-gray-400 tracking-widest border-r border-gray-100">Time</th>
                 {days.map((day) => <th key={day} className="p-6 text-xs font-black uppercase text-gray-700 tracking-widest text-center">{day}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {timeSlots.map((time, index) => (
                 <tr key={index} className="group">
-                  <td className="p-8 text-center border-r border-gray-100 bg-gray-50/20">
+                  <td className="text-center border-r border-gray-100 bg-gray-50/20">
                     <div className="flex flex-col items-center">
                       <Clock className="w-4 h-4 text-[#2D6CDF] mb-1" />
                       <span className="text-gray-900 font-black text-sm">{time}</span>
@@ -419,49 +504,53 @@ export default function TimetableView() {
                 onChange={(event) => setFormData((current) => ({ ...current, room: event.target.value }))}
                 disabled={Boolean(mappedRoom)}
                 placeholder="e.g. Science Lab 02"
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all disabled:cursor-not-allowed disabled:opacity-75"
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all"
               />
             </div>
 
             <div>
               <label className="block font-bold text-sm mb-2 text-gray-700">Start Time <span className="text-red-500">*</span></label>
-              <select
+              <input
+                type="time"
                 value={formData.startTime}
                 onChange={(event) => setFormData((current) => ({ ...current, startTime: event.target.value }))}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all appearance-none"
-              >
-                {timeSlots.map((time) => (
-                  <option key={time} value={time}>{time}</option>
-                ))}
-              </select>
+                list="timetable-time-options"
+                step={300}
+                className={INPUT_STYLES.default}
+              />
             </div>
 
             <div>
               <label className="block font-bold text-sm mb-2 text-gray-700">End Time <span className="text-red-500">*</span></label>
-              <select
+              <input
+                type="time"
                 value={formData.endTime}
                 onChange={(event) => setFormData((current) => ({ ...current, endTime: event.target.value }))}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10 focus:border-[#2D6CDF] transition-all appearance-none"
-              >
-                {timeSlots.map((time) => (
-                  <option key={time} value={time}>{time}</option>
-                ))}
-              </select>
+                list="timetable-time-options"
+                step={300}
+                className={INPUT_STYLES.default}
+              />
             </div>
           </div>
+
+          <datalist id="timetable-time-options">
+            {suggestedTimes.map((time) => (
+              <option key={time} value={time} />
+            ))}
+          </datalist>
 
           <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
             <button
               type="button"
               onClick={() => setShowModal(false)}
-              className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all"
+              className={`${BUTTON_STYLES.secondary} active:scale-95 shadow-lg shadow-[#2D6CDF]/20`}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createTimetableMutation.isPending || updateTimetableMutation.isPending}
-              className="px-8 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] disabled:opacity-50 transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20"
+              className={`${BUTTON_STYLES.primary} active:scale-95 shadow-lg shadow-[#2D6CDF]/20`}
             >
               {createTimetableMutation.isPending || updateTimetableMutation.isPending
                 ? 'Saving...'

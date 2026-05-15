@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FileText, User, TrendingUp, Download } from 'lucide-react';
 import GenericTable, { type Column } from '@/components/GenericTable';
+import SectionHeader from '@/components/SectionHeader';
+import StatSummaryCard from '@/components/StatSummaryCard';
 import type { Exam, Result } from '../model/result.types';
 import { useExamResults, useExams } from '../hooks/useResults';
 
@@ -40,11 +42,12 @@ export default function ResultsView() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-gray-900 font-black text-3xl mb-1">Academic Performance</h1>
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Examination Results Analysis</p>
-        </div>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <SectionHeader
+          icon={TrendingUp}
+          title="Academic Performance"
+          subtitle="Examination Results Analysis"
+        />
         <div className="flex gap-3">
           <select value={selectedExamId} onChange={(e) => setSelectedExamId(Number(e.target.value))} className="px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 transition-all font-bold text-gray-700 shadow-sm">
             {exams.map((exam) => <option key={exam.id} value={exam.id}>{exam.title}</option>)}
@@ -58,19 +61,9 @@ export default function ResultsView() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-[#2D6CDF] to-[#1a4ba8] rounded-[2rem] p-8 text-white shadow-xl shadow-blue-500/20 relative overflow-hidden">
-          <TrendingUp className="absolute -right-4 -bottom-4 w-32 h-32 text-white/10" />
-          <p className="text-blue-100 text-[10px] font-black uppercase tracking-widest mb-1">Class Average</p>
-          <p className="text-4xl font-black">{classAverage}%</p>
-        </div>
-        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-          <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Records</p>
-          <p className="text-4xl font-black text-gray-900">{results.length}</p>
-        </div>
-        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-          <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">Top Grades</p>
-          <p className="text-4xl font-black text-green-600">{results.filter((result) => result.grade === 'A+' || result.grade === 'A').length}</p>
-        </div>
+        <StatSummaryCard label="Class Average" value={`${classAverage}%`} color="text-blue-600" className="rounded-[2rem] p-8 bg-gradient-to-br from-blue-50 to-white" />
+        <StatSummaryCard label="Total Records" value={results.length} className="rounded-[2rem] p-8" />
+        <StatSummaryCard label="Top Grades" value={results.filter((result) => result.grade === 'A+' || result.grade === 'A').length} color="text-green-600" className="rounded-[2rem] p-8" />
       </div>
 
       <GenericTable

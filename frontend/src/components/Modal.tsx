@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { X } from 'lucide-react';
+import ModalHeader from './ModalHeader';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl';
 }
@@ -13,6 +14,7 @@ const Modal: React.FC<ModalProps> = ({
   isOpen, 
   onClose, 
   title, 
+  subtitle,
   children,
   maxWidth = '2xl'
 }) => {
@@ -43,15 +45,7 @@ const Modal: React.FC<ModalProps> = ({
       <div 
         className={`bg-white rounded-3xl shadow-2xl ${maxWidthClasses[maxWidth]} w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-100 animate-in zoom-in-95 duration-200`}
       >
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <h2 className="text-gray-900 font-bold text-xl">{title}</h2>
-          <button 
-            onClick={onClose} 
-            className="p-2 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
+        <ModalHeader title={title} subtitle={subtitle} onClose={onClose} />
         
         <div className="p-8 overflow-y-auto custom-scrollbar">
           {children}

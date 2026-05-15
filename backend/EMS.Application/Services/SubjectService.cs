@@ -34,9 +34,9 @@ internal sealed class SubjectService(IApplicationDbContext db, IAuditService aud
 
         existing.Name = update.Name;
         existing.Code = update.Code;
-        existing.Teacher = update.Teacher;
-        existing.Classes = update.Classes;
-        existing.Credits = update.Credits;
+        existing.TeacherId = update.TeacherId;
+        existing.ClasseId = update.ClasseId;
+        existing.FullMarks = update.FullMarks;
         existing.Type = update.Type;
 
         await db.SaveChangesAsync(cancellationToken);

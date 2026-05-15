@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Edit, Plus, Trash2 } from 'lucide-react';
+import { Edit, Plus, Trash2, Clock } from 'lucide-react';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { ToastContainer } from '@/components/Toast';
+import SectionHeader from '@/components/SectionHeader';
+import StatusBadge from '@/components/StatusBadge';
 import { useConfirm, useToast } from '@/hooks/useToast';
 import { useCreateShiftMutation, useDeleteShiftMutation, useShifts, useUpdateShiftMutation } from '../hooks/useShifts';
 import type { Shift, ShiftInput } from '../model/shift.types';
@@ -97,11 +99,12 @@ export default function ShiftsView() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Shift Management</h1>
-          <p className="text-sm text-gray-500">Configure shifts and late times for students, teachers and staff.</p>
-        </div>
+      <div className="mb-6">
+        <SectionHeader
+          icon={Clock}
+          title="Shift Management"
+          subtitle="Configure shifts and late times for students, teachers and staff"
+        />
       </div>
 
       {error && (
@@ -110,14 +113,6 @@ export default function ShiftsView() {
         </div>
       )}
 
-      <div className="mb-4">
-        <input
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Search shifts..."
-          className="w-full max-w-sm px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#2D6CDF]/10"
-        />
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
@@ -171,9 +166,7 @@ export default function ShiftsView() {
                       <td className="px-5 py-4 text-sm text-gray-600">{item.endTime || ''}</td>
                       <td className="px-5 py-4 text-sm text-gray-600">{item.studentLateTime || ''}</td>
                       <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold ${item.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {item.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        <StatusBadge status={item.isActive ? 'Active' : 'Inactive'} />
                       </td>
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">

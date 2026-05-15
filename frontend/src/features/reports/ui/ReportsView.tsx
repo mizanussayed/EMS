@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
-import { BarChart3, Download, FileText, TrendingUp, Calendar, Search } from 'lucide-react';
+import { BarChart3, Download, FileText, TrendingUp, Calendar } from 'lucide-react';
 import { RoleGuard } from '@/app/guards/RoleGuard';
 import { useToast } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/Toast';
+import SectionHeader from '@/components/SectionHeader';
+import FilterBar from '@/components/FilterBar';
+import StatSummaryCard from '@/components/StatSummaryCard';
 import type { GeneratedReport, ReportCategory } from '../model/report.types';
 import { useReportsSummary } from '../hooks/useReports';
 
@@ -51,21 +54,25 @@ export default function ReportsView() {
     <RoleGuard allowedRoles={['admin']}>
       <div className="p-8 max-w-[1600px] mx-auto">
         <div className="mb-10">
-          <h1 className="text-gray-900 font-black text-3xl mb-2">Reports & Analytics</h1>
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Generate and view detailed system data</p>
+          <SectionHeader
+            icon={BarChart3}
+            title="Reports & Analytics"
+            subtitle="Generate and view detailed system data"
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {reportCategories.map((category, index) => {
-            const Icon = category.icon;
             return (
-              <div key={index} className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
-                <div className={`w-14 h-14 ${category.color} rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-black/5 group-hover:scale-110 transition-transform`}>
-                  <Icon className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-gray-900 font-black text-lg mb-1">{category.title}</h3>
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">{summaryQuery.isLoading ? 'Loading' : category.count} Records</p>
-              </div>
+              <StatSummaryCard
+                key={index}
+                label={category.title}
+                value={summaryQuery.isLoading ? 'Loading' : `${category.count} Records`}
+                icon={category.icon}
+                iconBackground={category.color}
+                iconColor="text-white"
+                className="rounded-3xl p-8 hover:shadow-xl hover:-translate-y-1 cursor-pointer group"
+              />
             );
           })}
         </div>
@@ -128,13 +135,12 @@ export default function ReportsView() {
         </div>
 
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-gray-900 font-black text-xl">Recent Generations</h2>
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input type="text" value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} placeholder="Filter reports..." className="pl-12 pr-6 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 transition-all text-sm" />
-            </div>
-          </div>
+          <FilterBar
+            searchTerm={reportSearch}
+            onSearchChange={setReportSearch}
+            searchPlaceholder="Filter reports..."
+            className="rounded-none border-0 border-b border-gray-100 shadow-none p-8"
+          />
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { School, User, Bell, Lock, Globe, Palette, Save } from 'lucide-react';
 import { HasRole } from '@/app/guards/RoleGuard';
+import SectionHeader from '@/components/SectionHeader';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { defaultNotificationSettings, defaultSchoolInfo } from '../hooks/useSettings';
 
@@ -22,8 +23,11 @@ export default function SettingsView() {
   return (
     <div className="p-8 max-w-[1400px] mx-auto">
       <div className="mb-10">
-        <h1 className="text-gray-900 font-black text-3xl mb-2">Settings</h1>
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">System configuration & preferences</p>
+        <SectionHeader
+          icon={Palette}
+          title="Settings"
+          subtitle="System configuration & preferences"
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">

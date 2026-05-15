@@ -3,6 +3,7 @@ import { BookOpen, GraduationCap, Award, Users, FileText, Upload, Download, X } 
 import { useToast, useConfirm } from '@/hooks/useToast';
 import GenericTable, { type Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
+import SectionHeader from '@/components/SectionHeader';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -15,8 +16,8 @@ import { useCreateSubjectMutation, useDeleteSubjectMutation, useSubjects, useUpd
 const buildFormFields = (teacherOptions: FormField['options'], classOptions: FormField['options']): FormField[] => [
   { name: 'name', label: 'Subject Name', type: 'text', placeholder: 'e.g., Mathematics', required: true },
   { name: 'code', label: 'Subject Code', type: 'text', placeholder: 'e.g., MATH-10', required: true },
-  { name: 'teacher', label: 'Assigned Teacher', type: 'select', options: teacherOptions },
-  { name: 'classes', label: 'Classes', type: 'select', options: classOptions },
+  { name: 'teacherId', label: 'Assigned Teacher', type: 'select', options: teacherOptions },
+  { name: 'classId', label: 'Class', type: 'select', options: classOptions },
   { name: 'credits', label: 'Credits', type: 'number', placeholder: '3' },
   { name: 'type', label: 'Type', type: 'select', options: [{ label: 'Core', value: 'Core' }, { label: 'Elective', value: 'Elective' }] },
 ];
@@ -40,7 +41,7 @@ export default function SubjectsView() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const teacherOptions = useMemo(
-    () => teachers.map((teacher) => ({ label: teacher.name, value: teacher.name })),
+    () => teachers.map((teacher) => ({ label: teacher.name, value: teacher.id })),
     [teachers]
   );
 
@@ -48,7 +49,7 @@ export default function SubjectsView() {
     () =>
       classes.map((item) => {
         const label = item.section ? `${item.name} - ${item.section}` : item.name;
-        return { label, value: label };
+        return { label, value: item.id };
       }),
     [classes]
   );
@@ -146,7 +147,6 @@ export default function SubjectsView() {
     { header: 'Subject Name', accessor: (subject) => <div className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-[#2D6CDF]" /><span className="text-gray-900 font-medium">{subject.name}</span></div> },
     { header: 'Teacher', accessor: (subject) => <div className="flex items-center gap-2 text-gray-600"><GraduationCap className="w-4 h-4 text-gray-400" /><span>{subject.teacher || 'Not Assigned'}</span></div> },
     { header: 'Classes', accessor: 'classes' },
-    { header: 'Students', accessor: 'students' },
     { header: 'Credits', accessor: 'credits' },
     { header: 'Type', accessor: (subject) => <span className={`px-3 py-1 rounded-full text-xs font-bold ${subject.type === 'Core' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{subject.type}</span> },
   ];
@@ -172,6 +172,13 @@ export default function SubjectsView() {
 
   return (
     <div className="p-6">
+      <div className="mb-6">
+        <SectionHeader
+          icon={BookOpen}
+          title="Subject Management"
+          subtitle="Manage subjects and curriculum"
+        />
+      </div>
       {(teachersError || classesError) && (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {teachersError instanceof Error
@@ -261,7 +268,12 @@ export default function SubjectsView() {
       />
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={modalMode === 'add' ? 'Add New Subject' : 'Edit Subject'}>
-        <GenericForm fields={formFields} initialData={selectedSubject || { type: 'Core', credits: 3 }} onSubmit={handleSubmit} onCancel={() => setShowModal(false)} submitLabel={modalMode === 'add' ? 'Add Subject' : 'Save Changes'} />
+        <GenericForm 
+            fields={formFields} 
+            initialData={selectedSubject || { type: 'Core', credits: 3 }} 
+            onSubmit={handleSubmit} onCancel={() => setShowModal(false)} 
+            submitLabel={modalMode === 'add' ? 'Add Subject' : 'Save Changes'}
+         />
       </Modal>
 
       <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Subject Details">
@@ -281,7 +293,6 @@ export default function SubjectsView() {
               {[
                 { icon: BookOpen, label: 'Subject Name', value: selectedSubject.name },
                 { icon: GraduationCap, label: 'Assigned Teacher', value: selectedSubject.teacher || 'Not Assigned' },
-                { icon: Users, label: 'Total Students', value: selectedSubject.students || 0 },
                 { icon: Award, label: 'Credits', value: selectedSubject.credits },
                 { icon: Award, label: 'Subject Type', value: selectedSubject.type },
                 { icon: Users, label: 'Assigned Classes', value: selectedSubject.classes || 'None' },
