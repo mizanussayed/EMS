@@ -125,11 +125,11 @@ internal sealed class FeeStructureService(IApplicationDbContext db, IAuditServic
         return true;
     }
 
-    public async Task<List<FeeStructureDto>> GetByClassIdAsync(int classId, CancellationToken cancellationToken = default)
+    public async Task<List<FeeStructureDto>> GetByclassIdAsync(int ClassId, CancellationToken cancellationToken = default)
     {
         return await db.FeeStructures
             .AsNoTracking()
-            .Where(f => f.ClassId == classId && f.IsActive)
+            .Where(f => f.ClassId == ClassId && f.IsActive)
             .LeftJoin(db.Classes, f => f.ClassId, c => c.Id, (f, c) => new { Structure = f, Class = c })
             .Select(f => new FeeStructureDto(
                 f.Structure.Id,

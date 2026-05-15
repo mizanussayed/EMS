@@ -26,7 +26,7 @@ namespace EMS.Infrastructure.Migrations
                 newName: "TeacherId");
 
             migrationBuilder.AddColumn<int>(
-                name: "ClasseId",
+                name: "ClassId",
                 table: "Subjects",
                 type: "integer",
                 nullable: false,
@@ -66,7 +66,7 @@ namespace EMS.Infrastructure.Migrations
                 name: "FeeStructures");
 
             migrationBuilder.DropColumn(
-                name: "ClasseId",
+                name: "ClassId",
                 table: "Subjects");
 
             migrationBuilder.DropColumn(

@@ -22,8 +22,8 @@ public static class FeeStructureEndpoints
         })
         .WithName("GetFeeStructureById");
 
-        group.MapGet("/class/{classId:int}", async (int classId, IFeeStructureService service) =>
-            await service.GetByClassIdAsync(classId))
+        group.MapGet("/class/{ClassId:int}", async (int ClassId, IFeeStructureService service) =>
+            await service.GetByclassIdAsync(ClassId))
             .WithName("GetFeeStructuresByClass");
 
         group.MapPost("", async (CreateFeeStructureRequest request, IFeeStructureService service) =>

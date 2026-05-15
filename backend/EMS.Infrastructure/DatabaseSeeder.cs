@@ -23,9 +23,9 @@ public class DatabaseSeeder(AppDbContext dbContext, IPasswordHasher<AppUser> pas
         if (!dbContext.Subjects.Any())
         {
             dbContext.Subjects.AddRange(
-                new Subject { Name = "Mathematics", Code = "MATH-10", TeacherId = 1, ClasseId = 1, FullMarks = 100, Type = "Core" },
-                new Subject { Name = "English Literature", Code = "ENG-10", TeacherId = 2, ClasseId = 1, FullMarks = 100, Type = "Core" },
-                new Subject { Name = "Physics", Code = "PHY-10", TeacherId = 3, ClasseId = 2, FullMarks = 100, Type = "Core" }
+                new Subject { Name = "Mathematics", Code = "MATH-10", TeacherId = 1, ClassId = 1, FullMarks = 100, Type = "Core" },
+                new Subject { Name = "English Literature", Code = "ENG-10", TeacherId = 2, ClassId = 1, FullMarks = 100, Type = "Core" },
+                new Subject { Name = "Physics", Code = "PHY-10", TeacherId = 3, ClassId = 2, FullMarks = 100, Type = "Core" }
             );
             dbContext.SaveChanges();
         }

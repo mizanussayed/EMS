@@ -77,7 +77,7 @@ export default function TimetableView() {
  
 
     return subjects.filter((subject) => {
-      const subjectClasses = subject.classes?.trim();
+      const subjectClasses = subject.className?.trim();
       if (!subjectClasses) {
         return true;
       }
@@ -93,7 +93,7 @@ export default function TimetableView() {
   );
 
   const subjectTeacherByName = useMemo(
-    () => new Map(filteredSubjects.map((subject) => [subject.name, subject.teacher ?? ''])),
+    () => new Map(filteredSubjects.map((subject) => [subject.name, subject.teacherName ?? ''])),
     [filteredSubjects]
   );
 
@@ -122,7 +122,7 @@ export default function TimetableView() {
     [schoolClasses, selectedClass]
   );
   const mappedRoom = selectedSchoolClass?.room?.trim() ?? '';
-  const { data: entries = [], isLoading } = useTimetableEntries(selectedClass);
+  const { data: entries = [] } = useTimetableEntries(selectedClass);
   const timeSlots = useMemo(() => {
     const uniqueStartTimes = Array.from(new Set(entries.map((entry) => entry.startTime).filter(Boolean)));
     if (uniqueStartTimes.length === 0) {
@@ -282,7 +282,7 @@ export default function TimetableView() {
           return `<td>${entry ? `
             <strong>${escapeHtml(entry.subjectName)}</strong>
             <span>${escapeHtml(entry.teacherName)}</span>
-            <small>${escapeHtml(entry.startTime)} - ${escapeHtml(entry.endTime)} | Room ${escapeHtml(entry.room)}</small>
+            <small>${escapeHtml(entry.startTime)} - ${escapeHtml(entry.endTime)} | ${escapeHtml(entry.room)}</small>
           ` : ''}</td>`;
         }).join('')}
       </tr>
@@ -297,11 +297,12 @@ export default function TimetableView() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>${escapeHtml(selectedClass)} Timetable</title>
+          <title>${escapeHtml(selectedClass)} Routine</title>
           <style>
-            body { font-family: Arial, sans-serif; color: #111827; padding: 24px; }
-            h1 { margin: 0 0 4px; font-size: 24px; }
-            p { margin: 0 0 20px; color: #4b5563; }
+           * {text-align: center !important;}
+            body { font-family: Arial, sans-serif; color: #111827; padding: 20px;}
+            h1 { margin: 0 0 4px; font-size: 24px; color: #1d4ed8; }
+            p { margin: 0 0 20px; color: #4b5563;}
             table { width: 100%; border-collapse: collapse; table-layout: fixed; }
             th, td { border: 1px solid #d1d5db; padding: 10px; vertical-align: top; min-height: 72px; }
             thead th { background: #f3f4f6; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -313,7 +314,7 @@ export default function TimetableView() {
           </style>
         </head>
         <body>
-          <h1>${escapeHtml(selectedClass)} Timetable</h1>
+          <h1>${escapeHtml(selectedClass)} Routine</h1>
           <p>${mappedRoom ? `Default room: ${escapeHtml(mappedRoom)}` : 'Academic Schedule Planner'}</p>
           <table>
             <thead>

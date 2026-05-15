@@ -7,11 +7,11 @@ namespace EMS.Application.Services;
 
 internal sealed class AttendanceService(IApplicationDbContext db, IAuditService audit) : IAttendanceService
 {
-    public async Task<IReadOnlyList<AttendanceDto>> GetAttendanceByClassAsync(int classId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AttendanceDto>> GetAttendanceByClassAsync(int ClassId, CancellationToken cancellationToken = default)
     {
         return await db.Attendances
             .AsNoTracking()
-            .Where(a => a.Student.ClassId == classId)
+            .Where(a => a.Student.ClassId == ClassId)
             .OrderByDescending(a => a.Date)
             .ThenBy(a => a.Student.Name)
             .Select(a => new AttendanceDto(

@@ -1,16 +1,14 @@
 import { ChangeEvent, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Phone, BookOpen, User, Calendar, MapPin, Upload, Download, FileText, Search, Filter, X } from 'lucide-react';
+import { Phone, Upload, Download, FileText, Filter, X } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/dateUtils';
 import type { Student, StudentInput } from '../model/student.types';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useConfirm, useToast } from '@/hooks/useToast';
 import GenericTable, { Column } from '@/components/GenericTable';
-import Modal from '@/components/Modal';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import FilterBar from '@/components/FilterBar';
-import StatusBadge from '@/components/StatusBadge';
 import { useCreateStudentMutation, useUpdateStudentMutation, useDeleteStudentMutation, useStudents } from '../hooks/useStudents';
 import StudentForm, { emptyStudentInput } from './StudentForm';
 import { useClasses } from '@/features/classes/hooks/useClasses';
@@ -27,7 +25,6 @@ export default function StudentsView() {
   const [filterShift, setFilterShift] = useState('All Shifts');
   const [filterBadge, setFilterBadge] = useState('All Badges');
   const [showModal, setShowModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [formData, setFormData] = useState<StudentInput>(emptyStudentInput);
 
@@ -50,19 +47,19 @@ export default function StudentsView() {
         }));
       }
 
-      const optionsByClassId = new Map<number, string>();
+      const optionsByclassId = new Map<number, string>();
       data.forEach((student) => {
         if (!student.classId || !student.className) {
           return;
         }
 
-        optionsByClassId.set(
+        optionsByclassId.set(
           student.classId,
           student.sectionName ? `${student.className} - ${student.sectionName}` : student.className
         );
       });
 
-      return Array.from(optionsByClassId, ([value, label]) => ({
+      return Array.from(optionsByclassId, ([value, label]) => ({
         label,
         value: String(value),
       }));
@@ -299,7 +296,7 @@ export default function StudentsView() {
           name: value('name') || firstNameFromFull,
           lastName: value('lastname') || lastNameParts.join(' ') || '-',
           classRollNo: value('classrollno', 'rollno', 'roll', 'id'),
-          classId: parseInt(value('classid', 'class'), 10) || 0,
+          classId: parseInt(value('classId', 'class'), 10) || 0,
           sectionId: parseInt(value('sectionid', 'section'), 10) || 0,
           gender: value('gender'),
           email: value('email'),
@@ -349,7 +346,7 @@ export default function StudentsView() {
       <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold">{student.name.charAt(0)}</div>
         <div>
           <div className="font-bold text-gray-900">{`${student.name}`}</div>
-          <div className="text-xs text-gray-400">ID: {student.classRollNo}</div>
+          <div className="text-xs text-gray-400">Class Roll: {student.classRollNo}</div>
       </div>
     </div> },
     { header: 'Class & Section', accessor: (student) => <div>
@@ -358,7 +355,7 @@ export default function StudentsView() {
       </div> 
     },
     { header: 'Shift', accessor: () => <span className="px-2 py-1 bg-amber-50 text-amber-600 rounded text-xs font-bold">Day</span> },
-    { header: 'Badge', accessor: () => <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-xs font-bold">Resident</span> },
+    { header: 'Parent', accessor: (student) => <span>{student.parent}</span> },
     { header: 'Contact', accessor: (student) => <div className="space-y-1">
       <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
       <Phone className="w-3 h-3 text-gray-400" /><span>{student.parentPhone || 'N/A'}</span>
@@ -368,49 +365,45 @@ export default function StudentsView() {
   ];
 
   const filteredStudents = data.filter((student) => {
+    console.log(student);
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) || student.classRollNo?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = filterClass === 'All Classes' || student.className === filterClass;
     const matchesSection = filterSection === 'All Sections' || student.sectionName === filterSection;
     return matchesSearch && matchesClass && matchesSection;
   });
 
+  const SelectOptionCss = 'px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium';
+
   const customFilters = (
-    <FilterBar
-      searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
-      searchPlaceholder="Search by name, ID..."
-      className="p-0 bg-transparent border-0 shadow-none"
-    >
       <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
         <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold border border-indigo-100 shrink-0">
           <Filter className="w-4 h-4" /> Filters
         </div>
-        <select value={filterClass} onChange={(event) => setFilterClass(event.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
+        <select value={filterClass} onChange={(event) => setFilterClass(event.target.value)} className={SelectOptionCss}>
           <option>All Classes</option>
           {classFilterOptions.map((className) => (
             <option key={className} value={className}>{className}</option>
           ))}
         </select>
-        <select value={filterSection} onChange={(event) => setFilterSection(event.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
+        <select value={filterSection} onChange={(event) => setFilterSection(event.target.value)} className={SelectOptionCss}>
           <option>All Sections</option>
-          <option>A</option>
-          <option>B</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
         </select>
-        <select value={filterShift} onChange={(event) => setFilterShift(event.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
+        {/* <select value={filterShift} onChange={(event) => setFilterShift(event.target.value)} className={SelectOptionCss}>
           <option>All Shifts</option>
-          <option>Morning</option>
-          <option>Day</option>
+          <option value="Morning">Morning</option>
+          <option value="Day">Day</option>
         </select>
-        <select value={filterBadge} onChange={(event) => setFilterBadge(event.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6CDF]/20 text-sm font-medium">
+        <select value={filterBadge} onChange={(event) => setFilterBadge(event.target.value)} className={SelectOptionCss}>
           <option>All Badges</option>
-          <option>Resident</option>
-          <option>Non-Resident</option>
-        </select>
+          <option value="1">Resident</option>
+          <option value="2">Non-Resident</option>
+        </select> */}
         <button onClick={() => { setSearchTerm(''); setFilterClass('All Classes'); setFilterSection('All Sections'); setFilterShift('All Shifts'); setFilterBadge('All Badges'); }} className="p-2.5 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-xl transition-colors">
           <X className="w-5 h-5" />
         </button>
       </div>
-    </FilterBar>
   );
 
   const topActions = (
@@ -472,59 +465,6 @@ export default function StudentsView() {
         onSubmit={handleSubmit}
         onClose={resetForm}
       />
-
-      <Modal
-        isOpen={showViewModal}
-        onClose={() => setShowViewModal(false)}
-        title="Student Profile Details"
-        subtitle="Review profile details and current status"
-      >
-        {selectedStudent && (
-          <div className="space-y-8">
-            <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-              <div className="w-24 h-24 rounded-3xl bg-white shadow-sm flex items-center justify-center text-[#2D6CDF] font-bold text-4xl border border-gray-100">{selectedStudent.name.charAt(0)}</div>
-              <div>
-                <h3 className="text-gray-900 font-bold text-2xl mb-1">{selectedStudent.name}</h3>
-                <StatusBadge status={selectedStudent.isActive ? 'Active' : 'Inactive'} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {[
-                { icon: User, label: 'Admission No', value: selectedStudent.admissionNumber || 'N/A' },
-                { icon: BookOpen, label: 'Current Class', value: selectedStudent.className },
-                { icon: Calendar, label: 'Date of Birth', value: formatDateForDisplay(selectedStudent.dateOfBirth) },
-                { icon: User, label: 'Gender', value: selectedStudent.gender || 'N/A' },
-                { icon: Mail, label: 'Email Address', value: selectedStudent.email || 'N/A' },
-                { icon: User, label: 'Parent/Guardian', value: selectedStudent.parent || 'N/A' },
-                { icon: Phone, label: 'Parent Phone', value: selectedStudent.parentPhone || 'N/A' },
-              ].map((item, index) => (
-                <div key={index} className="flex gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 font-bold uppercase tracking-widest block">{item.label}</label>
-                    <p className="text-gray-900 font-bold">{item.value}</p>
-                  </div>
-                </div>
-              ))}
-              <div className="md:col-span-2 flex gap-4">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400"><MapPin className="w-5 h-5" /></div>
-                <div className="flex-1">
-                  <label className="text-xs text-gray-400 font-bold uppercase tracking-widest block">Residential Address</label>
-                  <p className="text-gray-900 font-bold bg-gray-50 p-4 rounded-xl border border-gray-100 mt-2">{selectedStudent.address || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
-              <button onClick={() => setShowViewModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-all">Close</button>
-              <button onClick={() => { setShowViewModal(false); setModalMode('edit'); setShowModal(true); }} className="px-8 py-2.5 bg-[#2D6CDF] text-white rounded-xl font-bold hover:bg-[#1a4ba8] transition-all active:scale-95 shadow-lg shadow-[#2D6CDF]/20">Edit Student</button>
-            </div>
-          </div>
-        )}
-      </Modal>
 
       <ToastContainer toasts={toasts} onRemove={remove} />
       <ConfirmDialog isOpen={confirmState.isOpen} title={confirmState.title} message={confirmState.message} confirmLabel={confirmState.confirmLabel} onConfirm={handleConfirm} onCancel={handleCancel} />

@@ -18,7 +18,7 @@ const buildFormFields = (teacherOptions: FormField['options'], classOptions: For
   { name: 'code', label: 'Subject Code', type: 'text', placeholder: 'e.g., MATH-10', required: true },
   { name: 'teacherId', label: 'Assigned Teacher', type: 'select', options: teacherOptions },
   { name: 'classId', label: 'Class', type: 'select', options: classOptions },
-  { name: 'credits', label: 'Credits', type: 'number', placeholder: '3' },
+  { name: 'fullMarks', label: 'Full Marks', type: 'number', placeholder: '100' },
   { name: 'type', label: 'Type', type: 'select', options: [{ label: 'Core', value: 'Core' }, { label: 'Elective', value: 'Elective' }] },
 ];
 
@@ -98,7 +98,7 @@ export default function SubjectsView() {
       return {
         name: obj['subject name'] || obj['name'] || obj['subject'] || '',
         code: obj['code'] || '',
-        credits: Number(obj['credits'] || obj['credit'] || 0),
+        fullMarks: Number(obj['fullmarks'] || obj['fullmarks'] || 0),
         type: obj['type'] || 'Core',
         teacher: obj['teacher'] || '',
       };
@@ -120,7 +120,7 @@ export default function SubjectsView() {
   const handleSubmit = async (data: any) => {
     try {
       if (modalMode === 'add') {
-        await createSubjectMutation.mutateAsync(data);
+       await createSubjectMutation.mutateAsync(data);
       } else {
         await updateSubjectMutation.mutateAsync({ id: selectedSubject?.id ?? 0, payload: data });
       }
@@ -145,9 +145,9 @@ export default function SubjectsView() {
   const columns: Column<Subject>[] = [
     { header: 'Subject Code', accessor: (subject) => <span className="font-bold text-gray-900">{subject.code}</span> },
     { header: 'Subject Name', accessor: (subject) => <div className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-[#2D6CDF]" /><span className="text-gray-900 font-medium">{subject.name}</span></div> },
-    { header: 'Teacher', accessor: (subject) => <div className="flex items-center gap-2 text-gray-600"><GraduationCap className="w-4 h-4 text-gray-400" /><span>{subject.teacher || 'Not Assigned'}</span></div> },
-    { header: 'Classes', accessor: 'classes' },
-    { header: 'Credits', accessor: 'credits' },
+    { header: 'Assigned Teacher', accessor: (subject) => <div className="flex items-center gap-2 text-gray-600"><GraduationCap className="w-4 h-4 text-gray-400" /><span>{subject.teacherName || 'Not Assigned'}</span></div> },
+    { header: 'Class', accessor: 'className' },
+    { header: 'Full Marks', accessor: 'fullMarks' },
     { header: 'Type', accessor: (subject) => <span className={`px-3 py-1 rounded-full text-xs font-bold ${subject.type === 'Core' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{subject.type}</span> },
   ];
 
@@ -155,13 +155,13 @@ export default function SubjectsView() {
     { label: 'Total Subjects', value: data.length },
     { label: 'Core Subjects', value: data.filter((subject) => subject.type === 'Core').length, color: 'text-blue-600' },
     { label: 'Electives', value: data.filter((subject) => subject.type === 'Elective').length, color: 'text-purple-600' },
-    { label: 'Teachers', value: new Set(data.map((subject) => subject.teacher).filter(Boolean)).size, color: 'text-green-600' },
+    { label: 'Teachers', value: new Set(data.map((subject) => subject.teacherName).filter(Boolean)).size, color: 'text-green-600' },
   ];
 
   const filteredSubjects = data.filter((subject) =>
     subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (subject.teacher?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    (subject.teacherName?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   const handleEditClick = (subject: Subject) => {
@@ -292,10 +292,10 @@ export default function SubjectsView() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
                 { icon: BookOpen, label: 'Subject Name', value: selectedSubject.name },
-                { icon: GraduationCap, label: 'Assigned Teacher', value: selectedSubject.teacher || 'Not Assigned' },
-                { icon: Award, label: 'Credits', value: selectedSubject.credits },
+                { icon: GraduationCap, label: 'Assigned Teacher', value: selectedSubject.teacherName || 'Not Assigned' },
+                { icon: Award, label: 'Full Marks', value: selectedSubject.fullMarks },
                 { icon: Award, label: 'Subject Type', value: selectedSubject.type },
-                { icon: Users, label: 'Assigned Classes', value: selectedSubject.classes || 'None' },
+                { icon: Users, label: 'Assigned Classes', value: selectedSubject.className || 'None' },
               ].map((item, index) => (
                 <div key={index} className="flex gap-4">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">

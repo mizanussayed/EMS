@@ -630,7 +630,7 @@ namespace EMS.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ClasseId")
+                    b.Property<int>("ClassId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Code")
