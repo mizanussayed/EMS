@@ -5,6 +5,7 @@ import GenericTable, { type Column } from '@/components/GenericTable';
 import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
+import StatusBadge from '@/components/StatusBadge';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { BookType, IssuedBook } from '../model/library.types';
 import { useCreateBookMutation, useIssueBookMutation, useLibrary, useReturnBookMutation } from '../hooks/useLibrary';
@@ -64,7 +65,7 @@ export default function LibraryView() {
   const columns: Column<BookType>[] = [
     { header: 'Book Info', accessor: (book) => <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#2D6CDF] font-bold"><BookIcon className="w-5 h-5" /></div><div><div className="font-bold text-gray-900">{book.title}</div><div className="text-xs text-gray-400">by {book.author}</div></div></div> },
     { header: 'ISBN', accessor: 'isbn' },
-    { header: 'Category', accessor: (book) => <span className="px-3 py-1 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold">{book.category}</span> },
+    { header: 'Category', accessor: (book) => <StatusBadge status={book.category} variant="info" /> },
     { header: 'Availability', accessor: (book) => <div className="flex flex-col"><span className="font-bold text-gray-900">{book.availableQuantity} / {book.quantity}</span><span className="text-[10px] text-gray-400 uppercase tracking-widest font-black">Available</span></div> },
     { header: 'Location', accessor: (book) => <span className="font-bold text-gray-700">{book.rackNumber}</span> },
   ];
@@ -119,11 +120,21 @@ export default function LibraryView() {
         </div>
       </div>
 
-      <Modal isOpen={showAddBookModal} onClose={() => setShowAddBookModal(false)} title="Add New Book">
+      <Modal
+        isOpen={showAddBookModal}
+        onClose={() => setShowAddBookModal(false)}
+        title="Add New Book"
+        subtitle="Create a new inventory entry for the library"
+      >
         <GenericForm fields={bookFormFields} initialData={{ quantity: 1, category: 'Science', rackNumber: 'A-1' }} onSubmit={handleAddBook} onCancel={() => setShowAddBookModal(false)} submitLabel="Save to Inventory" />
       </Modal>
 
-      <Modal isOpen={showIssueModal} onClose={() => setShowIssueModal(false)} title="Issue Book">
+      <Modal
+        isOpen={showIssueModal}
+        onClose={() => setShowIssueModal(false)}
+        title="Issue Book"
+        subtitle="Assign a book to a student and set the due date"
+      >
         <div className="space-y-6">
           <div>
             <label className="block text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Student ID</label>

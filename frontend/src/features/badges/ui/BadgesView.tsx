@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { BadgePlus, Edit, Trash2 } from 'lucide-react';
 import { useToast, useConfirm } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/Toast';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import SectionHeader from '@/components/SectionHeader';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import type { StudentBadge } from '../model/badge.types';
 import { useBadges, useCreateBadgeMutation, useDeleteBadgeMutation, useUpdateBadgeMutation } from '../hooks/useBadges';
 
@@ -21,7 +24,6 @@ export default function BadgesView() {
   const deleteBadgeMutation = useDeleteBadgeMutation();
   const { toasts, remove, success, error } = useToast();
   const { confirmState, confirm, handleConfirm, handleCancel } = useConfirm();
-  const [searchTerm] = useState('');
   const [selected, setSelected] = useState<StudentBadge | null>(null);
   const [formData, setFormData] = useState<Partial<StudentBadge>>({
     name: '',
@@ -66,23 +68,25 @@ export default function BadgesView() {
     setFormData(item);
   };
 
-  const filtered = data.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const badges = data;
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Badges Management</h1>
-          <p className="text-sm text-gray-500">Configure student badges.</p>
-        </div>
-      </div>
+      <SectionHeader
+        icon={BadgePlus}
+        title="Badges Management"
+        subtitle="Configure student badges"
+        className="mb-6"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
-          <div className="bg-[#2D6CDF] px-5 py-4 text-white font-bold flex items-center gap-2">
-            {selected ? <Edit className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-            {selected ? 'Edit Badge' : 'Add New Badge'}
-          </div>
+          <SectionHeader
+            icon={selected ? Edit : BadgePlus}
+            title={selected ? 'Edit Badge' : 'Add New Badge'}
+            subtitle={selected ? 'Update badge details and active state' : 'Create a new student badge'}
+            className="p-5 pb-0"
+          />
 
           <GenericForm
             fields={formFields}
@@ -107,15 +111,13 @@ export default function BadgesView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((item) => (
+                {badges.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50/50">
                     <td className="px-5 py-4 text-sm font-bold text-gray-900">{item.name}</td>
                     <td className="px-5 py-4 text-sm text-gray-600">{item.description || ''}</td>
                     <td className="px-5 py-4 text-sm text-gray-600">{item.color || ''}</td>
                     <td className="px-5 py-4">
-                      <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold ${item.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {item.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <StatusBadge status={item.isActive ? 'Active' : 'Inactive'} />
                     </td>
                     <td className="px-5 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
@@ -129,10 +131,13 @@ export default function BadgesView() {
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {badges.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-gray-500 text-sm">
-                      No badges found.
+                    <td colSpan={5} className="px-5 py-8 text-center">
+                      <EmptyState
+                        title="No badges found"
+                        subtitle="Create the first badge using the form on the left"
+                      />
                     </td>
                   </tr>
                 )}

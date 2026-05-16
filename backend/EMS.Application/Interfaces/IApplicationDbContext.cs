@@ -19,6 +19,7 @@ public interface IApplicationDbContext
     DbSet<ExamResult> ExamResults { get; }
     DbSet<TimetableEntry> TimetableEntries { get; }
     DbSet<Fee> Fees { get; }
+    DbSet<FeeStructure> FeeStructures { get; }
     DbSet<Book> Books { get; }
     DbSet<BookIssue> BookIssues { get; }
     DbSet<Event> Events { get; }

@@ -6,8 +6,9 @@ import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import StatusBadge from '@/components/StatusBadge';
 import { useConfirm, useToast } from '@/hooks/useToast';
-import { formatDateForAPI, formatDateForDisplay, formatDateForInput } from '@/utils/dateUtils';
+import { formatDateForDisplay, formatDateForInput } from '@/utils/dateUtils';
 import { useDeleteExamMutation, useExamResults, useExams, useCreateExamMutation, useUpdateExamMutation } from '../hooks/useExams';
 import type { Exam, ExamInput, ExamResult } from '../model/exam.types';
 import { downloadClassWiseResults, downloadStudentWiseResults, downloadTranscriptCard, downloadExamSummary } from '@/utils/examReports';
@@ -54,8 +55,6 @@ export default function ExamsView() {
     try {
       const payload: ExamInput = {
         ...data,
-        startDate: formatDateForAPI(data.startDate),
-        endDate: formatDateForAPI(data.endDate),
       };
 
       if (modalMode === 'add') {
@@ -121,15 +120,7 @@ export default function ExamsView() {
     },
     {
       header: 'Status',
-      accessor: (exam) => (
-        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
-          exam.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-100' :
-          exam.status === 'Ongoing' ? 'bg-orange-50 text-orange-700 border-orange-100 animate-pulse' :
-          'bg-blue-50 text-blue-700 border-blue-100'
-        }`}>
-          {exam.status}
-        </span>
-      ),
+      accessor: (exam) => <StatusBadge status={exam.status} />,
     },
   ];
 

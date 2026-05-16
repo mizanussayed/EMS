@@ -6,6 +6,7 @@ import Modal from '@/components/Modal';
 import GenericForm, { type FormField } from '@/components/GenericForm';
 import { ToastContainer } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import StatusBadge from '@/components/StatusBadge';
 import { formatDateForInput, formatDateForAPI, formatDateForDisplay } from '@/utils/dateUtils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { Teacher, TeacherInput } from '../model/teacher.types';
@@ -142,9 +143,7 @@ export default function TeachersView() {
       </div>
 
       <div className="flex items-center justify-between pt-5 border-t border-gray-50">
-        <span className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider ${teacher.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-orange-50 text-orange-700 border border-orange-100'}`}>
-          {teacher.status}
-        </span>
+        <StatusBadge status={teacher.status} />
         <p className="text-xs text-gray-400 font-medium">Exp: {teacher.experience || 'N/A'}</p>
       </div>
     </div>

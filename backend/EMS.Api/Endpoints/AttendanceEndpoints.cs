@@ -9,8 +9,8 @@ public static class AttendanceEndpoints
     {
         var attendanceGroup = app.MapGroup("/api/attendance").WithTags("Attendance");
 
-        attendanceGroup.MapGet("/{classId:int}", async (int classId, IAttendanceService attendanceService) =>
-            Results.Ok(await attendanceService.GetAttendanceByClassAsync(classId)))
+        attendanceGroup.MapGet("/{ClassId:int}", async (int ClassId, IAttendanceService attendanceService) =>
+            Results.Ok(await attendanceService.GetAttendanceByClassAsync(ClassId)))
             .WithName("GetAttendanceByClass");
 
         attendanceGroup.MapPost("", async (AttendanceRequest request, IAttendanceService attendanceService) =>

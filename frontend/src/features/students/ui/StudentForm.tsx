@@ -54,7 +54,12 @@ export default function StudentForm({
   onClose,
 }: StudentFormProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={mode === 'add' ? 'Register New Student' : 'Edit Student Details'}>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={mode === 'add' ? 'Register New Student' : 'Edit Student Details'}
+      subtitle={mode === 'add' ? 'Capture the student profile and enrollment details' : 'Update the existing student record'}
+    >
       <GenericForm
         fields={buildFormFields(classOptions)}
         initialData={initialData}

@@ -15,8 +15,8 @@ internal sealed class FeeService(IApplicationDbContext db, IAuditService audit) 
             .Select(f => new FeeDto(
                 f.Fee.Id,
                 f.Fee.StudentId,
-                f.Student!.Name,
-                f.Student.ClassId,
+                f.Student != null ? f.Student.Name : string.Empty,
+                f.Student != null ? f.Student.ClassId : 0,
                 f.Fee.Month,
                 f.Fee.Amount,
                 f.Fee.PaidAmount,

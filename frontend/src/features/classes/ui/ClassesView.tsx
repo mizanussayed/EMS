@@ -6,6 +6,7 @@ import GenericForm, { type FormField } from '@/components/GenericForm';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { ToastContainer } from '@/components/Toast';
 import { useConfirm, useToast } from '@/hooks/useToast';
+import StatusBadge from '@/components/StatusBadge';
 import { useClassLookups, useClasses, useCreateClassMutation, useDeleteClassMutation, useUpdateClassMutation } from '../hooks/useClasses';
 import type { ClassInput, LookupOption, SchoolClass } from '../model/class.types';
 
@@ -102,11 +103,7 @@ export default function ClassesView() {
     { header: 'Room', accessor: 'room' },
     {
       header: 'Shift',
-      accessor: (item) => (
-        <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.shift === 'Morning Shift' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
-          {item.shift || 'N/A'}
-        </span>
-      ),
+      accessor: (item) => <StatusBadge status={item.shift || 'N/A'} variant={item.shift === 'Morning Shift' ? 'info' : 'warning'} />,
     },
     { header: 'Students', accessor: 'numberOfStudents' },
   ];
@@ -204,6 +201,7 @@ export default function ClassesView() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={modalMode === 'add' ? 'Create New Class' : 'Edit Class Details'}
+        subtitle={modalMode === 'add' ? 'Create a new class record and assign its teacher' : 'Update class details and assigned information'}
       >
         <GenericForm
           fields={formFields}
@@ -218,6 +216,7 @@ export default function ClassesView() {
         isOpen={showViewModal}
         onClose={() => setShowViewModal(false)}
         title="Class Details"
+        subtitle="Review class information, teacher, room, and shift"
       >
         {selectedClass && (
           <div className="space-y-8">
@@ -245,7 +244,11 @@ export default function ClassesView() {
                   </div>
                   <div>
                     <label className="text-xs text-gray-400 font-bold uppercase tracking-widest block">{item.label}</label>
-                    <p className="text-gray-900 font-bold">{item.value}</p>
+                    {item.label === 'Shift' ? (
+                      <StatusBadge status={String(item.value)} variant={item.value === 'Morning Shift' ? 'info' : 'warning'} />
+                    ) : (
+                      <p className="text-gray-900 font-bold">{item.value}</p>
+                    )}
                   </div>
                 </div>
               ))}

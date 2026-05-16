@@ -25,7 +25,7 @@ export interface ExamInput {
   title: string;
   type: string;
   className?: string;
-  startDate?: string;
-  endDate?: string;
+  startDate: string;
+  endDate: string;
   status: string;
 }

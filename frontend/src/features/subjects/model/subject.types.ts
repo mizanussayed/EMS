@@ -2,18 +2,20 @@ export interface Subject {
   id: number;
   name: string;
   code: string;
-  teacher?: string;
-  classes?: string;
+  teacherId?: number;
+  classId: number;
   students?: number;
-  credits: number;
+  fullMarks: number;
   type: string;
+  teacherName?: string;
+  className?: string;
 }
 
 export interface SubjectInput {
   name: string;
   code: string;
-  teacher?: string;
-  classes?: string;
-  credits?: number;
+  teacherId?: number;
+  classId?: number;
+  fullMarks?: number;
   type: string;
 }

@@ -20,6 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ExamResult> ExamResults => Set<ExamResult>();
     public DbSet<TimetableEntry> TimetableEntries => Set<TimetableEntry>();
     public DbSet<Fee> Fees => Set<Fee>();
+    public DbSet<FeeStructure> FeeStructures => Set<FeeStructure>();
     public DbSet<Book> Books => Set<Book>();
     public DbSet<BookIssue> BookIssues => Set<BookIssue>();
     public DbSet<Event> Events => Set<Event>();

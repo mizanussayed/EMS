@@ -146,6 +146,7 @@ app.MapStaffEndpoints();
 app.MapExamEndpoints();
 app.MapTimetableEndpoints();
 app.MapFeeEndpoints();
+app.MapFeeStructureEndpoints();
 app.MapLibraryEndpoints();
 app.MapEventEndpoints();
 app.MapAttendanceEndpoints();

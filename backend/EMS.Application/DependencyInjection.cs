@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<IEventService, EventService>();
         services.AddScoped<IExamService, ExamService>();
         services.AddScoped<IFeeService, FeeService>();
+        services.AddScoped<IFeeStructureService, FeeStructureService>();
         services.AddScoped<ILibraryService, LibraryService>();
         services.AddScoped<IShiftService, ShiftService>();
         services.AddScoped<IStaffService, StaffService>();
